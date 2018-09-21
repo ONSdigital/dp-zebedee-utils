@@ -142,6 +142,10 @@ func (c *CMS) dirs() []string {
 	}
 }
 
+func (c *CMS) GetZebedeeRoot() string {
+	return c.zebedeeDir
+}
+
 func newCommand(name string, dir string, args ...string) *exec.Cmd {
 	cmd := exec.Command(name, args...)
 	if dir != "" {

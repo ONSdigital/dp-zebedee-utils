@@ -31,4 +31,5 @@ func main() {
 	}
 
 	log.Info.Println("successfully generated zebedee file system")
+	log.Info.Printf("add the following to zebedee/run.sh\n\nexport zebedee_root=%q\n", *root)
 }
