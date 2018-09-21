@@ -6,7 +6,7 @@
 go build -o lib/content-gen
 ```
 
-###V iew options
+### View options
 ```
 ./lib/content-gen -h | -help
 ```
