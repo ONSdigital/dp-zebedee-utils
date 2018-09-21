@@ -1,12 +1,12 @@
 # dp-zebedee-utils
 
-###Build the binary
+### Build the binary
 
 ```
 go build -o lib/content-gen
 ```
 
-###View options
+###V iew options
 ```
 ./lib/content-gen -h | -help
 ```
