@@ -1,7 +1,7 @@
 package cms
 
 import (
-	"github.com/ONSdigital/dp-zebedee-utils/setup/log"
+	"github.com/ONSdigital/dp-zebedee-utils/log"
 	"github.com/pkg/errors"
 	"io"
 	"os"

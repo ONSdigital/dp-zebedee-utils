@@ -2,8 +2,8 @@ package main
 
 import (
 	"flag"
-	"github.com/ONSdigital/dp-zebedee-utils/setup/cms"
-	"github.com/ONSdigital/dp-zebedee-utils/setup/log"
+	"github.com/ONSdigital/dp-zebedee-utils/cms"
+	"github.com/ONSdigital/dp-zebedee-utils/log"
 	"os"
 )
 
