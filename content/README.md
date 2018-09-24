@@ -12,13 +12,14 @@ go build -o builder
 
 ### Run it
 ```
-./builder [ARGS]
+./builder [FLAGS]
 ```
 
-#### Args 
+#### Flags 
 
-| Arg        | Description                                                                   |
+| Flag       | Description                                                                   |
 | ---------- |-------------------------------------------------------------------------------|
 | -h / -help | Display the help menu.                                                        |
 | -r         | The absolute path of the directory to generate the zebedee file structure in. |
+| -cmd       | If `true` a CMD service account will be generated, the default is false.      |
 
