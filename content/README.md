@@ -17,7 +17,8 @@ go build -o builder
 
 #### Args 
 
-| arg        | description                                                              |
-| ---------- |--------------------------------------------------------------------------|
-| -h / -help | display the help menu                                                    |
-| -r         | absolute path of the directory to generate the zebedee file structure in |
+| Arg        | Description                                                                   |
+| ---------- |-------------------------------------------------------------------------------|
+| -h / -help | Display the help menu.                                                        |
+| -r         | The absolute path of the directory to generate the zebedee file structure in. |
+
