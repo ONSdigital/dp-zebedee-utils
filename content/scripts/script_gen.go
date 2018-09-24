@@ -12,21 +12,13 @@ import (
 
 var (
 	templateFile = "templates/run.cms.template.txt"
-	cmsRunFile   = "generated/run-cms.sh"
+	output       = "generated"
+	cmsRunFile   = output + "/run-cms.sh"
 )
 
 func GenerateCMSRunScript(rootDir string) (string, error) {
-	exists, err := files.Exists(cmsRunFile)
-	if err != nil {
+	if err := houseKeeping(); err != nil {
 		return "", err
-	}
-
-	if exists {
-		log.Info.Println("removing existing run-cms.sh file")
-		err := os.Remove(cmsRunFile)
-		if err != nil {
-			return "", err
-		}
 	}
 
 	tmpl, err := template.ParseFiles(templateFile)
@@ -46,4 +38,31 @@ func GenerateCMSRunScript(rootDir string) (string, error) {
 		return "", errors.Wrap(err, "error generating run.sh from template")
 	}
 	return cmsRunFile, nil
+}
+
+func houseKeeping() error {
+	exists, err := files.Exists(output)
+	if err != nil {
+		return err
+	}
+
+	if !exists {
+		if err := os.Mkdir(output, 0700); err != nil {
+			return errors.Wrap(err, "error creating generated dir")
+		}
+	}
+
+	exists, err = files.Exists(cmsRunFile)
+	if err != nil {
+		return err
+	}
+
+	if exists {
+		log.Info.Println("removing existing run-cms.sh file")
+		if err := os.Remove(cmsRunFile); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
