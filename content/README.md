@@ -15,9 +15,9 @@ go build -o builder
 ./builder [ARGS]
 ```
 
-####Args 
+#### Args 
 
-| arg        | description                                                              | Example
-| ---------- |--------------------------------------------------------------------------| ----------------------------
+| arg        | description                                                              |
+| ---------- |--------------------------------------------------------------------------|
 | -h / -help | display the help menu                                                    |
-| -r         | absolute path of the directory to generate the zebedee file structure in | `./lib/content-gen -r="/a/b/c"`
+| -r         | absolute path of the directory to generate the zebedee file structure in |
