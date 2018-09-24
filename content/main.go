@@ -4,6 +4,7 @@ import (
 	"flag"
 	"github.com/ONSdigital/dp-zebedee-utils/content/cms"
 	"github.com/ONSdigital/dp-zebedee-utils/content/log"
+	"github.com/ONSdigital/dp-zebedee-utils/content/scripts"
 	"os"
 )
 
@@ -22,15 +23,26 @@ func main() {
 
 	builder, err := cms.New(*root, *isCMD)
 	if err != nil {
-		log.Error.Fatal(err)
-		os.Exit(1)
+		errorAndExit(err)
 	}
 
 	err = builder.Build()
 	if err != nil {
-		log.Error.Fatal(err)
+		errorAndExit(err)
 	}
 
 	log.Info.Println("successfully generated zebedee file system")
-	log.Info.Printf("add the following to zebedee/run.sh\n\nexport zebedee_root=%q\n", *root)
+
+	var file string
+	file, err = scripts.GenerateCMSRunScript(*root)
+	if err != nil {
+		errorAndExit(err)
+	}
+
+	log.Info.Printf("a customized script for running zebedee cms has been generated under %q", file)
+}
+
+func errorAndExit(err error) {
+	log.Error.Fatal(err)
+	os.Exit(1)
 }

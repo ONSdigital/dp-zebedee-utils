@@ -3,12 +3,12 @@ package cms
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/ONSdigital/dp-zebedee-utils/content/files"
 	"github.com/ONSdigital/dp-zebedee-utils/content/log"
 	"github.com/pkg/errors"
 	"github.com/satori/go.uuid"
 	"io"
 	"io/ioutil"
-	"os"
 	"os/exec"
 	"path/filepath"
 )
@@ -36,6 +36,7 @@ var (
 type Builder struct {
 	Out            io.Writer
 	OutErr         io.Writer
+	rootDir        string
 	zebedeeDir     string
 	masterDir      string
 	collectionsDir string
@@ -53,7 +54,7 @@ type Builder struct {
 // New construct a new cmd.Builder
 func New(root string, createServiceAccount bool) (*Builder, error) {
 	zebedeeDir := filepath.Join(root, Zebedee)
-	exists, err := exists(zebedeeDir)
+	exists, err := files.Exists(zebedeeDir)
 	if err != nil {
 		return nil, err
 	}
@@ -63,6 +64,7 @@ func New(root string, createServiceAccount bool) (*Builder, error) {
 	}
 
 	c := &Builder{
+		rootDir:        root,
 		zebedeeDir:     zebedeeDir,
 		masterDir:      filepath.Join(zebedeeDir, Master),
 		collectionsDir: filepath.Join(zebedeeDir, Collections),
@@ -207,15 +209,4 @@ func newCommand(name string, dir string, args ...string) *exec.Cmd {
 	cmd.Stdout = Out
 	cmd.Stderr = OutErr
 	return cmd
-}
-
-func exists(path string) (bool, error) {
-	_, err := os.Stat(path)
-	if err == nil {
-		return true, nil
-	}
-	if os.IsNotExist(err) {
-		return false, nil
-	}
-	return true, err
 }
