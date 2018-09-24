@@ -1,7 +1,7 @@
 package cms
 
 import (
-	"github.com/ONSdigital/dp-zebedee-utils/log"
+	"github.com/ONSdigital/dp-zebedee-utils/content/log"
 	"github.com/pkg/errors"
 	"io"
 	"os"
@@ -20,7 +20,7 @@ const (
 	Teams             = "teams"
 	LaunchPad         = "launchpad"
 	AppKeys           = "application-keys"
-	defaultContentZip = "DefaultContent.zip"
+	defaultContentZip = "default-content.zip"
 )
 
 var (
@@ -28,7 +28,7 @@ var (
 	OutErr io.Writer
 )
 
-type CMS struct {
+type Builder struct {
 	Out            io.Writer
 	OutErr         io.Writer
 	zebedeeDir     string
@@ -43,7 +43,7 @@ type CMS struct {
 	appKeysDir     string
 }
 
-func New(root string) (*CMS, error) {
+func New(root string) (*Builder, error) {
 	zebedeeDir := filepath.Join(root, Zebedee)
 	exists, err := exists(zebedeeDir)
 	if err != nil {
@@ -54,7 +54,7 @@ func New(root string) (*CMS, error) {
 		return nil, errors.New("cannot generate directory structure as a zebedee a dir already exists at the root location provided")
 	}
 
-	c := &CMS{
+	c := &Builder{
 		zebedeeDir:     zebedeeDir,
 		masterDir:      filepath.Join(zebedeeDir, Master),
 		collectionsDir: filepath.Join(zebedeeDir, Collections),
@@ -69,22 +69,22 @@ func New(root string) (*CMS, error) {
 	return c, nil
 }
 
-func (c *CMS) Initialize() error {
-	if err := c.createDirs(); err != nil {
+func (b *Builder) Build() error {
+	if err := b.createDirs(); err != nil {
 		return err
 	}
 
-	err := c.copyContentZipToMaster()
+	err := b.copyContentZipToMaster()
 	if err != nil {
 		return err
 	}
 
-	err = c.unzipContentInMaster()
+	err = b.unzipContentInMaster()
 	if err != nil {
 		return err
 	}
 
-	err = c.removeContentZipFromMaster()
+	err = b.removeContentZipFromMaster()
 	if err != nil {
 		return err
 	}
@@ -92,12 +92,12 @@ func (c *CMS) Initialize() error {
 	return nil
 }
 
-func (c *CMS) createDirs() error {
+func (b *Builder) createDirs() error {
 	log.Info.Println("creating zebedee directories")
-	for _, dir := range c.dirs() {
+	for _, dir := range b.dirs() {
 		cmd := exec.Command("mkdir", dir)
-		cmd.Stderr = c.Out
-		cmd.Stdout = c.OutErr
+		cmd.Stderr = b.Out
+		cmd.Stdout = b.OutErr
 
 		if err := cmd.Run(); err != nil {
 			return err
@@ -109,41 +109,41 @@ func (c *CMS) createDirs() error {
 	return nil
 }
 
-func (c *CMS) copyContentZipToMaster() error {
-	log.Info.Printf("copying default content zip to master: %s\n", c.masterDir)
-	cmd := newCommand("cp", "", defaultContentZip, c.masterDir)
+func (b *Builder) copyContentZipToMaster() error {
+	log.Info.Printf("copying default content zip to master: %s\n", b.masterDir)
+	cmd := newCommand("cp", "", defaultContentZip, b.masterDir)
 	return cmd.Run()
 }
 
-func (c *CMS) unzipContentInMaster() error {
-	log.Info.Printf("unzipping default content into master: %s\n", c.masterDir)
-	cmd := newCommand("unzip", c.masterDir, "-q", defaultContentZip)
+func (b *Builder) unzipContentInMaster() error {
+	log.Info.Printf("unzipping default content into master: %s\n", b.masterDir)
+	cmd := newCommand("unzip", b.masterDir, "-q", defaultContentZip)
 	return cmd.Run()
 }
 
-func (c *CMS) removeContentZipFromMaster() error {
+func (b *Builder) removeContentZipFromMaster() error {
 	log.Info.Println("cleaning up default content zip")
-	cmd := newCommand("rm", c.masterDir, defaultContentZip)
+	cmd := newCommand("rm", b.masterDir, defaultContentZip)
 	return cmd.Run()
 }
 
-func (c *CMS) dirs() []string {
+func (b *Builder) dirs() []string {
 	return []string{
-		c.zebedeeDir,
-		c.masterDir,
-		c.collectionsDir,
-		c.publishLogDir,
-		c.usersDir,
-		c.sessionsDir,
-		c.permissionsDir,
-		c.teamsDir,
-		c.launchPadDir,
-		c.appKeysDir,
+		b.zebedeeDir,
+		b.masterDir,
+		b.collectionsDir,
+		b.publishLogDir,
+		b.usersDir,
+		b.sessionsDir,
+		b.permissionsDir,
+		b.teamsDir,
+		b.launchPadDir,
+		b.appKeysDir,
 	}
 }
 
-func (c *CMS) GetZebedeeRoot() string {
-	return c.zebedeeDir
+func (b *Builder) GetZebedeeRoot() string {
+	return b.zebedeeDir
 }
 
 func newCommand(name string, dir string, args ...string) *exec.Cmd {

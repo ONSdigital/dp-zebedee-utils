@@ -1,18 +1,7 @@
 # dp-zebedee-utils
 
-### Build the binary
+Helpful developer tools for all things Zebedee-CMS
 
-```
-go build -o lib/content-gen
-```
-
-### View options
-```
-./lib/content-gen -h | -help
-```
-
-### Generate
-Will generate the zebedee directory structure and populate master directory with some default content.
-```
-./lib/content-gen -root=$[PATH TO ZEBEDEE DIR]
-```
+| arg        | description                                                       
+| ---------- |-------------------------------------------------------------------
+| /content   | command-line tool for generating a zebedee-cms directory structure 

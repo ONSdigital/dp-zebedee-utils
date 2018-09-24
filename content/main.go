@@ -2,13 +2,13 @@ package main
 
 import (
 	"flag"
-	"github.com/ONSdigital/dp-zebedee-utils/cms"
-	"github.com/ONSdigital/dp-zebedee-utils/log"
+	"github.com/ONSdigital/dp-zebedee-utils/content/cms"
+	"github.com/ONSdigital/dp-zebedee-utils/content/log"
 	"os"
 )
 
 func main() {
-	root := flag.String("root", "", "the root directory in which to build zebedeeDir directory structure")
+	root := flag.String("r", "", "the root directory in which to build zebedeeDir directory structure")
 	flag.Parse()
 
 	if *root == "" {
@@ -19,13 +19,13 @@ func main() {
 	cms.Out = log.InfoHandler
 	cms.OutErr = log.ErrorHandler
 
-	cms, err := cms.New(*root)
+	builder, err := cms.New(*root)
 	if err != nil {
 		log.Error.Fatal(err)
 		os.Exit(1)
 	}
 
-	err = cms.Initialize()
+	err = builder.Build()
 	if err != nil {
 		log.Error.Fatal(err)
 	}
