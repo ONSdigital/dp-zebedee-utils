@@ -1,7 +1,10 @@
 # dp-zebedee-utils/content
 
-Simple command line tool for generating the Zebedee-CMS directory structure and populating it with default content. Simply
-provide an absolute path to a directory for the generator to create the directory structure. 
+Command line tool for generating the Zebedee-CMS directory structure and populating it with default content.
+
+Simply provide an absolute path to a directory for the generator to create the directory structure. In addition a 
+personalised `/generated/run-cms.sh` is generated which can be used to run Zebedee in publishing/CMS mode using the dev
+local config.
 
 ### Build the binary
 
