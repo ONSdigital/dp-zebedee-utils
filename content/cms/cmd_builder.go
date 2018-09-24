@@ -1,9 +1,13 @@
 package cms
 
 import (
+	"encoding/json"
+	"fmt"
 	"github.com/ONSdigital/dp-zebedee-utils/content/log"
 	"github.com/pkg/errors"
+	"github.com/satori/go.uuid"
 	"io"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -16,6 +20,7 @@ const (
 	PublishLog        = "publish-log"
 	Users             = "users"
 	Sessions          = "sessions"
+	Services          = "services"
 	Permissions       = "permissions"
 	Teams             = "teams"
 	LaunchPad         = "launchpad"
@@ -37,13 +42,16 @@ type Builder struct {
 	publishLogDir  string
 	usersDir       string
 	sessionsDir    string
+	servicesDir    string
 	permissionsDir string
 	teamsDir       string
 	launchPadDir   string
 	appKeysDir     string
+	serviceAccount bool
 }
 
-func New(root string) (*Builder, error) {
+// New construct a new cmd.Builder
+func New(root string, createServiceAccount bool) (*Builder, error) {
 	zebedeeDir := filepath.Join(root, Zebedee)
 	exists, err := exists(zebedeeDir)
 	if err != nil {
@@ -61,15 +69,19 @@ func New(root string) (*Builder, error) {
 		publishLogDir:  filepath.Join(zebedeeDir, PublishLog),
 		usersDir:       filepath.Join(zebedeeDir, Users),
 		sessionsDir:    filepath.Join(zebedeeDir, Sessions),
+		servicesDir:    filepath.Join(zebedeeDir, Services),
 		permissionsDir: filepath.Join(zebedeeDir, Permissions),
 		teamsDir:       filepath.Join(zebedeeDir, Teams),
 		launchPadDir:   filepath.Join(zebedeeDir, LaunchPad),
 		appKeysDir:     filepath.Join(zebedeeDir, AppKeys),
+		serviceAccount: createServiceAccount,
 	}
 	return c, nil
 }
 
+// Build creates the Zebedee CMS directory structure
 func (b *Builder) Build() error {
+	log.Info.Printf("args: root=%s, cmd=%t\n", b.zebedeeDir, b.serviceAccount)
 	if err := b.createDirs(); err != nil {
 		return err
 	}
@@ -89,6 +101,12 @@ func (b *Builder) Build() error {
 		return err
 	}
 
+	if b.serviceAccount {
+		err := b.createServiceAccount()
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -100,7 +118,7 @@ func (b *Builder) createDirs() error {
 		cmd.Stdout = b.OutErr
 
 		if err := cmd.Run(); err != nil {
-			return err
+			return errors.Wrap(err, fmt.Sprintf("error while attempting to create zebedee directory: %s", dir))
 		}
 		log.Info.Printf("created: %s\n", dir)
 	}
@@ -112,23 +130,56 @@ func (b *Builder) createDirs() error {
 func (b *Builder) copyContentZipToMaster() error {
 	log.Info.Printf("copying default content zip to master: %s\n", b.masterDir)
 	cmd := newCommand("cp", "", defaultContentZip, b.masterDir)
-	return cmd.Run()
+
+	if err := cmd.Run(); err != nil {
+		return errors.Wrap(err, "error executing command: copyContentZipToMaster")
+	}
+	return nil
 }
 
 func (b *Builder) unzipContentInMaster() error {
 	log.Info.Printf("unzipping default content into master: %s\n", b.masterDir)
 	cmd := newCommand("unzip", b.masterDir, "-q", defaultContentZip)
-	return cmd.Run()
+
+	if err := cmd.Run(); err != nil {
+		return errors.Wrap(err, "error executing command: unzipContentInMaster")
+	}
+	return nil
 }
 
 func (b *Builder) removeContentZipFromMaster() error {
 	log.Info.Println("cleaning up default content zip")
 	cmd := newCommand("rm", b.masterDir, defaultContentZip)
-	return cmd.Run()
+
+	if err := cmd.Run(); err != nil {
+		return errors.Wrap(err, "error executing command: removeContentZipFromMaster")
+	}
+	return nil
+}
+
+func (b *Builder) createServiceAccount() error {
+	id, err := uuid.NewV4()
+	if err != nil {
+		return errors.Wrap(err, "error generating UUID")
+	}
+
+	log.Info.Printf("generating CMD service account: ID: %s\n", id.String())
+
+	jsonB, err := json.Marshal(map[string]interface{}{"id": "Wayne Enterprises"})
+	if err != nil {
+		return errors.Wrap(err, "error marshaling service account JSON")
+	}
+
+	filename := filepath.Join(b.servicesDir, id.String()+".json")
+	err = ioutil.WriteFile(filename, jsonB, 0644)
+	if err != nil {
+		return errors.Wrap(err, "error writing service account JSON to file")
+	}
+	return nil
 }
 
 func (b *Builder) dirs() []string {
-	return []string{
+	dirs := []string{
 		b.zebedeeDir,
 		b.masterDir,
 		b.collectionsDir,
@@ -140,10 +191,12 @@ func (b *Builder) dirs() []string {
 		b.launchPadDir,
 		b.appKeysDir,
 	}
-}
 
-func (b *Builder) GetZebedeeRoot() string {
-	return b.zebedeeDir
+	if b.serviceAccount {
+		dirs = append(dirs, b.servicesDir)
+	}
+
+	return dirs
 }
 
 func newCommand(name string, dir string, args ...string) *exec.Cmd {

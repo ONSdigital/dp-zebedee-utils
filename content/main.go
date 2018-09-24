@@ -9,6 +9,7 @@ import (
 
 func main() {
 	root := flag.String("r", "", "the root directory in which to build zebedeeDir directory structure")
+	isCMD := flag.Bool("cmd", false, "if true creates a CMD service account, default is false")
 	flag.Parse()
 
 	if *root == "" {
@@ -19,7 +20,7 @@ func main() {
 	cms.Out = log.InfoHandler
 	cms.OutErr = log.ErrorHandler
 
-	builder, err := cms.New(*root)
+	builder, err := cms.New(*root, *isCMD)
 	if err != nil {
 		log.Error.Fatal(err)
 		os.Exit(1)
