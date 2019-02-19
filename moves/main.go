@@ -33,7 +33,6 @@ func main() {
 
 	collections.MoveContent(col, args.GetSrc(), args.GetDest())
 
-
 	relPath, _ := filepath.Rel(args.GetMasterDir(), args.GetSrc())
 	relPath = path.Join("/", relPath)
 	uri, _ := filepath.Split(relPath)
