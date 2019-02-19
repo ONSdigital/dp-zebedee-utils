@@ -1,83 +1,43 @@
 package main
 
 import (
-	"context"
-	"errors"
-	"flag"
 	"github.com/ONSdigital/dp-zebedee-utils/collections"
+	"github.com/ONSdigital/dp-zebedee-utils/moves/config"
 	"github.com/ONSdigital/log.go/log"
 	"os"
 	"path"
+	"path/filepath"
 )
-
-type Config struct {
-	zebRoot        string
-	collectionName string
-	src            string
-	dest           string
-}
 
 func main() {
 	log.Namespace = "content-mover"
-	log.Event(context.Background(), "starting up")
+	args := config.GetArgs()
 
-	a, err := getConfig()
-	if err != nil {
-		log.Event(nil, "missing env var", log.Error(err), log.Data{"var": "ZEB_ROOT"})
-		os.Exit(1)
+	log.Event(nil, "moving content", log.Data{
+		"src":        args.GetSrc(),
+		"dest":       args.GetDest(),
+		"collection": args.GetCollectionName(),
+	})
+
+	cols := collections.LoadCollections(args.GetCollectionsDir())
+
+	for _, c := range cols {
+		if c.Contains(args.GetSrc()) {
+			log.Event(nil, "cannot complete move as src is contained in another collections")
+			os.Exit(1)
+		}
 	}
 
-	col := collections.New(a.getCollectionsDir(), a.collectionName)
-	if err := collections.Save(col); err != nil {
-		log.Event(nil, "create collection failed", log.Error(err))
-		os.Exit(1)
-	}
+	col := collections.New(args.GetCollectionsDir(), args.GetCollectionName())
+	collections.Save(col)
 
-	if err := collections.Move(col, a.getSrc(), a.dest); err != nil {
-		log.Event(nil, "move failed", log.Error(err), log.Data{"src": a.getSrc()})
-		os.Exit(1)
-	}
-}
+	collections.MoveContent(col, args.GetSrc(), args.GetDest())
 
-func getConfig() (*Config, error) {
-	zebRoot := flag.String("zeb_root", "", "")
-	collectionName := flag.String("collection", "", "")
-	src := flag.String("src", "", "")
-	dest := flag.String("dest", "", "")
-	flag.Parse()
 
-	if *zebRoot == "" {
-		return nil, errors.New("missing env arg zebedee root")
-	}
+	relPath, _ := filepath.Rel(args.GetMasterDir(), args.GetSrc())
+	relPath = path.Join("/", relPath)
+	uri, _ := filepath.Split(relPath)
 
-	if *collectionName == "" {
-		return nil, errors.New("missing env arg collection name")
-	}
-
-	if *src == "" {
-		return nil, errors.New("missing env arg src")
-	}
-
-	if *dest == "" {
-		return nil, errors.New("missing env arg dest")
-	}
-
-	return &Config{
-		zebRoot:        *zebRoot,
-		collectionName: *collectionName,
-		src:            *src,
-		dest:           *dest,
-	}, nil
-}
-
-func (a *Config) getCollectionsDir() string {
-	return path.Join(a.zebRoot, "collections")
-}
-
-func (a *Config) getMasterDir() string {
-	return path.Join(a.zebRoot, "master")
-}
-
-func (a *Config) getSrc() string {
-	return path.Join(a.zebRoot, "master", a.src)
+	brokenLinks := collections.FindBrokenLinks(args.GetMasterDir(), filepath.Clean(uri))
+	log.Event(nil, "links to fix", log.Data{"brokenLinks": brokenLinks})
 }
