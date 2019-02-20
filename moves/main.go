@@ -1,9 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"github.com/ONSdigital/dp-zebedee-utils/collections"
 	"github.com/ONSdigital/dp-zebedee-utils/moves/config"
 	"github.com/ONSdigital/log.go/log"
+	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -18,6 +20,13 @@ func main() {
 		"dest":       args.GetDest(),
 		"collection": args.GetCollectionName(),
 	})
+
+	infos, _ := ioutil.ReadDir("./")
+	for _, info := range infos {
+		fmt.Println(info.Name())
+	}
+
+	os.Exit(1)
 
 	cols, err := collections.LoadCollections(args.GetCollectionsDir())
 	if err != nil {
