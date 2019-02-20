@@ -136,7 +136,9 @@ func LoadCollections(collectionsRoot string) ([]*Collection, error) {
 			if err != nil {
 				return nil, newErr("failed to load collection", err, log.Data{"collectionName": f.Name()})
 			}
-			collections = append(collections, c)
+			if c != nil {
+				collections = append(collections, c)
+			}
 		}
 	}
 	return collections, nil
@@ -144,6 +146,11 @@ func LoadCollections(collectionsRoot string) ([]*Collection, error) {
 
 func LoadCollection(collectionsRoot string, name string) (*Collection, error) {
 	metadata := NewMetadata(collectionsRoot, name)
+	if !Exists(metadata.CollectionJSON) {
+		log.Event(nil, "no collection json file exists for collection", log.Data{"collection": name})
+		return nil, nil
+	}
+
 	b, err := ioutil.ReadFile(metadata.CollectionJSON)
 	if err != nil {
 		return nil, err
