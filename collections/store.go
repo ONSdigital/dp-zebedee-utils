@@ -3,9 +3,7 @@ package collections
 import (
 	"bufio"
 	"encoding/json"
-	"errors"
 	"github.com/ONSdigital/log.go/log"
-	"io"
 	"io/ioutil"
 	"os"
 	"path"
@@ -13,22 +11,20 @@ import (
 	"strings"
 )
 
-func Save(c *Collection) {
+func Save(c *Collection) error {
 	if Exists(c.Metadata.CollectionRoot) {
-		log.Event(nil, "cannot create collection as a collection with this name already exists", log.Data{"name": c.Name})
-		os.Exit(1)
+		return newErr("cannot create collection as a collection with this name already exists", nil, log.Data{"name": c.Name})
 	}
 
 	if err := createCollectionDirectories(c); err != nil {
-		log.Event(nil, "error creating collection directories", log.Error(err), log.Data{"name": c.Name})
-		os.Exit(1)
+		return newErr("error creating collection directories", err, log.Data{"name": c.Name})
 	}
 
 	if err := createCollectionJson(c); err != nil {
-		log.Event(nil, "error creating collection json", log.Error(err), log.Data{"name": c.Name})
-		os.Exit(1)
+		return newErr("error creating collection json", err, log.Data{"name": c.Name})
 	}
 	log.Event(nil, "collection created successfully", log.Data{"collection": c.Name})
+	return nil
 }
 
 func Exists(filePath string) bool {
@@ -45,63 +41,54 @@ func Exists(filePath string) bool {
 func Delete(rootPath string, name string) error {
 	target := path.Join(rootPath, name)
 	if !Exists(target) {
-		return errors.New("cannot delete collection as it does not exist")
+		return newErr("cannot delete collection as it does not exist", nil, log.Data{"collection": name})
 	}
 
 	log.Event(nil, "deleting collection", log.Data{"collection": target})
 	return os.RemoveAll(target)
 }
 
-func MoveContent(c *Collection, src string, dest string) {
-	var err error
-	var srcFile *os.File = nil
-	var destFile *os.File = nil
-
+func MoveContent(c *Collection, src string, dest string) error {
 	if !Exists(src) {
-		log.Event(nil, "failed to move content src does not exit", log.Data{"src": src})
-		os.Exit(1)
+		return newErr("failed to move content src does not exit", nil, log.Data{"src": src})
 	}
 
-	defer func() {
-		for _, c := range []io.Closer{srcFile, destFile} {
-			if c != nil {
-				if err := c.Close(); err != nil {
-					panic(err)
-				}
-			}
-		}
-	}()
-
-	srcFile, err = os.Open(src)
+	f, err := ioutil.ReadFile(src)
 	if err != nil {
-		log.Event(nil, "failed to move content error opening src file", log.Error(err), log.Data{"src": src})
-		os.Exit(1)
+		return newErr("failed to move content error reading src file", err, log.Data{"src": src})
 	}
 
-	relPath := path.Join(c.Metadata.InProgress, dest)
-	dir, _ := filepath.Split(relPath)
-	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
-		log.Event(nil, "failed to move content error creating dirs in collection", log.Error(err), log.Data{"src": src})
-		os.Exit(1)
+	var page map[string]interface{}
+	if err := json.Unmarshal(f, &page); err != nil {
+		return newErr("failed to unmarshall src json file", err, log.Data{"src": src})
 	}
 
-	destFile, err = os.Create(relPath)
+	fullDestPath := path.Join(c.Metadata.InProgress, dest)
+	destDir, _ := filepath.Split(fullDestPath)
+	newURI, _ := filepath.Split(dest)
+
+	if _, ok := page["uri"]; ok {
+		page["uri"] = strings.TrimRight(newURI, "/")
+	}
+
+	modified, err := json.MarshalIndent(page, "", " ")
 	if err != nil {
-		log.Event(nil, "failed to move content error creating dest file", log.Error(err), log.Data{"dest": dest})
-		os.Exit(1)
+		return newErr("failed to marshall modified src json file", err, log.Data{"src": src})
 	}
 
-	wr := bufio.NewWriter(destFile)
-	_, err = io.Copy(wr, srcFile)
-	if err != nil {
-		log.Event(nil, "failed to move content error coping from src to dest", log.Error(err),
-			log.Data{
-				"src":  src,
-				"dest": dest,
-			})
-		os.Exit(1)
+	if err := os.MkdirAll(destDir, os.ModePerm); err != nil {
+		return newErr("failed to move content error creating dirs in collection", err, log.Data{"src": src})
 	}
-	wr.Flush()
+
+	_, err = os.Create(fullDestPath)
+	if err != nil {
+		return newErr("failed to move content error creating dest file", err, log.Data{"dest": dest})
+	}
+
+	if err := ioutil.WriteFile(fullDestPath, modified, os.ModePerm); err != nil {
+		return newErr("failed to write modified content to file", err, log.Data{"dest": dest})
+	}
+	return nil
 }
 
 func FindBrokenLinks(root string, src string) []string {
@@ -135,12 +122,11 @@ func FindBrokenLinks(root string, src string) []string {
 	return filesToFix
 }
 
-func LoadCollections(collectionsRoot string) []*Collection {
+func LoadCollections(collectionsRoot string) ([]*Collection, error) {
 	log.Event(nil, "loading existing collections")
 	collectionFiles, err := ioutil.ReadDir(collectionsRoot)
 	if err != nil {
-		log.Event(nil, "failed to read collections dir", log.Error(err))
-		os.Exit(1)
+		return nil, newErr("failed to read collections dir", err, nil)
 	}
 
 	collections := make([]*Collection, 0)
@@ -148,14 +134,12 @@ func LoadCollections(collectionsRoot string) []*Collection {
 		if f.IsDir() {
 			c, err := LoadCollection(collectionsRoot, f.Name())
 			if err != nil {
-				log.Event(nil, "failed to load collection", log.Error(err), log.Data{"collectionName": f.Name()})
-				os.Exit(1)
+				return nil, newErr("failed to load collection", err, log.Data{"collectionName": f.Name()})
 			}
-
 			collections = append(collections, c)
 		}
 	}
-	return collections
+	return collections, nil
 }
 
 func LoadCollection(collectionsRoot string, name string) (*Collection, error) {

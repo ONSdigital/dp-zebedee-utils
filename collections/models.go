@@ -29,6 +29,24 @@ type Collection struct {
 	Teams                 []interface{} `json:"teams"`
 }
 
+type Error struct {
+	Data        log.Data
+	Message     string
+	OriginalErr error
+}
+
+func (e Error) Error() string {
+	return e.Message
+}
+
+func newErr(message string, err error, data log.Data) Error {
+	return Error{
+		Message:     message,
+		Data:        data,
+		OriginalErr: err,
+	}
+}
+
 func New(rootPath string, name string) *Collection {
 	newID, _ := uuid.NewV4()
 	id := fmt.Sprintf("%s-%s", name, newID.String())

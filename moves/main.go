@@ -19,7 +19,10 @@ func main() {
 		"collection": args.GetCollectionName(),
 	})
 
-	cols := collections.LoadCollections(args.GetCollectionsDir())
+	cols, err := collections.LoadCollections(args.GetCollectionsDir())
+	if err != nil {
+		logAndExit(err)
+	}
 
 	for _, c := range cols {
 		if c.Contains(args.GetSrc()) {
@@ -29,14 +32,31 @@ func main() {
 	}
 
 	col := collections.New(args.GetCollectionsDir(), args.GetCollectionName())
-	collections.Save(col)
+	if err := collections.Save(col); err != nil {
+		logAndExit(err)
+	}
 
-	collections.MoveContent(col, args.GetSrc(), args.GetDest())
+	if err := collections.MoveContent(col, args.GetSrc(), args.GetDest()); err != nil {
+		logAndExit(err)
+	}
 
 	relPath, _ := filepath.Rel(args.GetMasterDir(), args.GetSrc())
 	relPath = path.Join("/", relPath)
-	uri, _ := filepath.Split(relPath)
+	//uri, _ := filepath.Split(relPath)
 
-	brokenLinks := collections.FindBrokenLinks(args.GetMasterDir(), filepath.Clean(uri))
-	log.Event(nil, "links to fix", log.Data{"brokenLinks": brokenLinks})
+/*	brokenLinks := collections.FindBrokenLinks(args.GetMasterDir(), filepath.Clean(uri))
+	log.Event(nil, "links to fix", log.Data{"brokenLinks": brokenLinks})*/
+}
+
+func logAndExit(err error) {
+	if colErr, ok := err.(collections.Error); ok {
+		if colErr.OriginalErr != nil {
+			log.Event(nil, colErr.Message, log.Error(colErr.OriginalErr), colErr.Data)
+		} else {
+			log.Event(nil, colErr.Message, colErr.Data)
+		}
+	} else {
+		log.Event(nil, "unknown error", log.Error(err))
+	}
+	os.Exit(1)
 }
