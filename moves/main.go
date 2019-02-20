@@ -5,7 +5,6 @@ import (
 	"github.com/ONSdigital/dp-zebedee-utils/collections"
 	"github.com/ONSdigital/dp-zebedee-utils/moves/config"
 	"github.com/ONSdigital/log.go/log"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -21,24 +20,20 @@ func main() {
 		"collection": args.GetCollectionName(),
 	})
 
-	infos, _ := ioutil.ReadDir("./")
-	for _, info := range infos {
-		fmt.Println(info.Name())
-	}
-
-	os.Exit(1)
-
 	cols, err := collections.LoadCollections(args.GetCollectionsDir())
 	if err != nil {
 		logAndExit(err)
 	}
 
 	for _, c := range cols {
+		fmt.Println(c.Name)
 		if c.Contains(args.GetSrc()) {
 			log.Event(nil, "cannot complete move as src is contained in another collections")
 			os.Exit(1)
 		}
 	}
+
+	os.Exit(1)
 
 	col := collections.New(args.GetCollectionsDir(), args.GetCollectionName())
 	if err := collections.Save(col); err != nil {
