@@ -76,7 +76,7 @@ func MoveContent(c *Collection, src string, dest string) error {
 		return newErr("failed to marshall modified src json file", err, log.Data{"src": src})
 	}
 
-	if err := os.MkdirAll(destDir, os.ModePerm); err != nil {
+	if err := os.MkdirAll(destDir, 0666); err != nil {
 		return newErr("failed to move content error creating dirs in collection", err, log.Data{"src": src})
 	}
 
@@ -85,7 +85,7 @@ func MoveContent(c *Collection, src string, dest string) error {
 		return newErr("failed to move content error creating dest file", err, log.Data{"dest": dest})
 	}
 
-	if err := ioutil.WriteFile(fullDestPath, modified, os.ModePerm); err != nil {
+	if err := ioutil.WriteFile(fullDestPath, modified, 0666); err != nil {
 		return newErr("failed to write modified content to file", err, log.Data{"dest": dest})
 	}
 	return nil
@@ -166,7 +166,7 @@ func LoadCollection(collectionsRoot string, name string) (*Collection, error) {
 
 func createCollectionDirectories(c *Collection) error {
 	for _, d := range c.getDirs() {
-		if err := os.MkdirAll(d, os.ModePerm); err != nil {
+		if err := os.MkdirAll(d, 0666); err != nil {
 			return err
 		}
 	}

@@ -33,8 +33,6 @@ func main() {
 		}
 	}
 
-	os.Exit(1)
-
 	col := collections.New(args.GetCollectionsDir(), args.GetCollectionName())
 	if err := collections.Save(col); err != nil {
 		logAndExit(err)
