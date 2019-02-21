@@ -11,6 +11,8 @@ import (
 	"strings"
 )
 
+const filePerm = 0755
+
 func Save(c *Collection) error {
 	if Exists(c.Metadata.CollectionRoot) {
 		return newErr("cannot create collection as a collection with this name already exists", nil, log.Data{"name": c.Name})
@@ -76,7 +78,7 @@ func MoveContent(c *Collection, src string, dest string) error {
 		return newErr("failed to marshall modified src json file", err, log.Data{"src": src})
 	}
 
-	if err := os.MkdirAll(destDir, 0666); err != nil {
+	if err := os.MkdirAll(destDir, filePerm); err != nil {
 		return newErr("failed to move content error creating dirs in collection", err, log.Data{"src": src})
 	}
 
@@ -85,7 +87,7 @@ func MoveContent(c *Collection, src string, dest string) error {
 		return newErr("failed to move content error creating dest file", err, log.Data{"dest": dest})
 	}
 
-	if err := ioutil.WriteFile(fullDestPath, modified, 0666); err != nil {
+	if err := ioutil.WriteFile(fullDestPath, modified, filePerm); err != nil {
 		return newErr("failed to write modified content to file", err, log.Data{"dest": dest})
 	}
 	return nil
@@ -166,7 +168,7 @@ func LoadCollection(collectionsRoot string, name string) (*Collection, error) {
 
 func createCollectionDirectories(c *Collection) error {
 	for _, d := range c.getDirs() {
-		if err := os.MkdirAll(d, 0666); err != nil {
+		if err := os.MkdirAll(d, filePerm); err != nil {
 			return err
 		}
 	}
