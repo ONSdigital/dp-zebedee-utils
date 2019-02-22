@@ -6,8 +6,6 @@ import (
 	"github.com/ONSdigital/dp-zebedee-utils/moves/config"
 	"github.com/ONSdigital/log.go/log"
 	"os"
-	"path"
-	"path/filepath"
 )
 
 func main() {
@@ -42,12 +40,12 @@ func main() {
 		logAndExit(err)
 	}
 
-	relPath, _ := filepath.Rel(args.GetMasterDir(), args.GetSrc())
-	relPath = path.Join("/", relPath)
-	uri, _ := filepath.Split(relPath)
+	/*	relPath, _ := filepath.Rel(args.GetMasterDir(), args.GetSrc())
+		relPath = path.Join("/", relPath)
+		uri, _ := filepath.Split(relPath)
 
-	brokenLinks := collections.FindBrokenLinks(args.GetMasterDir(), filepath.Clean(uri))
-	log.Event(nil, "links to fix", log.Data{"brokenLinks": brokenLinks})
+		brokenLinks := collections.FindBrokenLinks(args.GetMasterDir(), filepath.Clean(uri))
+		log.Event(nil, "links to fix", log.Data{"brokenLinks": brokenLinks})*/
 }
 
 func logAndExit(err error) {

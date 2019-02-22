@@ -34,6 +34,10 @@ func (a *Args) GetCollectionName() string {
 	return a.collectionName
 }
 
+func (a *Args) GetZebedeeDir() string {
+	return a.zebRoot
+}
+
 func GetArgs() *Args {
 	zebRoot := flag.String("zeb_root", "", "")
 	collectionName := flag.String("collection", "", "")

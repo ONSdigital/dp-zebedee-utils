@@ -129,6 +129,10 @@ func (c *Collection) Contains(uri string) bool {
 	return false
 }
 
+func (c *Collection) inProgressURI(taxonomyURI string) string {
+	return path.Join(c.Metadata.InProgress, taxonomyURI)
+}
+
 func (c *Collection) getDirs() []string {
 	return []string{
 		c.Metadata.CollectionRoot,

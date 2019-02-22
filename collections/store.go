@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"github.com/ONSdigital/log.go/log"
+	"io"
 	"io/ioutil"
 	"os"
 	"path"
@@ -50,47 +51,76 @@ func Delete(rootPath string, name string) error {
 	return os.RemoveAll(target)
 }
 
-func MoveContent(c *Collection, src string, dest string) error {
-	if !Exists(src) {
-		return newErr("failed to move content src does not exit", nil, log.Data{"src": src})
-	}
+func MoveContent(c *Collection, currentTaxonomy string, newTaxonomy string) error {
+	return filepath.Walk(currentTaxonomy, func(contentAbsolutePath string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		// Make the file path relative to the master directory
+		// i.e /zebedee/content/master/aboutus/data.json -> /aboutus/data.json
+		taxonomyURI, _ := filepath.Rel(currentTaxonomy, contentAbsolutePath)
 
-	f, err := ioutil.ReadFile(src)
+		// Collection uri is the absolute path of the file in the collection's in progress dir
+		// e.g. /zebedee/content/collections/test123/inprogress/aboutus/data.json
+		collectionURI := c.inProgressURI(path.Join(newTaxonomy, taxonomyURI))
+
+		// Create the taxonomy directory in the collection
+		if info.IsDir() {
+			return createContentDirInCollection(collectionURI)
+		}
+
+		// otherwise copy the file into the new location within the collection directory
+		return createContentFileInCollection(contentAbsolutePath, collectionURI)
+	})
+	return nil
+}
+
+func createContentDirInCollection(collectionURI string) error {
+	if err := os.MkdirAll(collectionURI, filePerm); err != nil {
+		return err
+	}
+	return nil
+}
+
+func createContentFileInCollection(srcFilePath string, collectionURI string) error {
+	destFile, err := os.Create(collectionURI)
 	if err != nil {
-		return newErr("failed to move content error reading src file", err, log.Data{"src": src})
+		return err
 	}
+	defer destFile.Close()
 
+	srcFile, err := os.Open(srcFilePath)
+	if err != nil {
+		return err
+	}
+	defer srcFile.Close()
+
+
+	data := log.Data{"from": srcFilePath, "to": collectionURI}
+	log.Event(nil, "copying content", data)
+
+	_, err = io.Copy(destFile, srcFile)
+	if err != nil {
+		return newErr("failed to copy", err, data)
+	}
+	return nil
+}
+
+func fixURI(f []byte, newUri string) ([]byte, error) {
 	var page map[string]interface{}
 	if err := json.Unmarshal(f, &page); err != nil {
-		return newErr("failed to unmarshall src json file", err, log.Data{"src": src})
+		return nil, err
 	}
 
-	fullDestPath := path.Join(c.Metadata.InProgress, dest)
-	destDir, _ := filepath.Split(fullDestPath)
-	newURI, _ := filepath.Split(dest)
-
 	if _, ok := page["uri"]; ok {
-		page["uri"] = strings.TrimRight(newURI, "/")
+		page["uri"] = strings.TrimRight(newUri, "/")
 	}
 
 	modified, err := json.MarshalIndent(page, "", " ")
 	if err != nil {
-		return newErr("failed to marshall modified src json file", err, log.Data{"src": src})
+		return nil, err
 	}
-
-	if err := os.MkdirAll(destDir, filePerm); err != nil {
-		return newErr("failed to move content error creating dirs in collection", err, log.Data{"src": src})
-	}
-
-	_, err = os.Create(fullDestPath)
-	if err != nil {
-		return newErr("failed to move content error creating dest file", err, log.Data{"dest": dest})
-	}
-
-	if err := ioutil.WriteFile(fullDestPath, modified, filePerm); err != nil {
-		return newErr("failed to write modified content to file", err, log.Data{"dest": dest})
-	}
-	return nil
+	return modified, nil
 }
 
 func FindBrokenLinks(root string, src string) []string {
