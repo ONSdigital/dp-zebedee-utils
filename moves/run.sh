@@ -4,4 +4,9 @@ export HUMAN_LOG="true"
 
 go build -o moves
 
-./moves -zeb_root="/zeb-test" -collection="test123" -src="/aboutus/data.json" -dest="/aboutus/test/data.json"
+#./moves -zeb_root="/Users/dave/Desktop/zebedee-data/content/zebedee" -collection="test123" -src="/economy/environmentalaccounts/articles/environmentaltaxes/2015-06-01" -dest="/economy/environmentalaccounts/articles/environmentaltaxes/2015-06-01/test"
+
+./moves -zeb_root="/zebe-test" \
+	-collection="test123" \
+	-src="/economy/economicoutputandproductivity/productivitymeasures/articles/experimentalestimatesofinvestmentinintangibleassetsintheuk2015" \
+	-dest="/economy/economicoutputandproductivity/productivitymeasures/articles/experimentalestimatesofinvestmentinintangibleassetsintheuk"
