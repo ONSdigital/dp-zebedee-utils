@@ -22,8 +22,12 @@ func (a *Args) GetMasterDir() string {
 	return path.Join(a.zebRoot, "master")
 }
 
-func (a *Args) GetSrc() string {
+func (a *Args) GetAbsSrc() string {
 	return path.Join(a.zebRoot, "master", a.src)
+}
+
+func (a *Args) GetRelSrc() string {
+	return a.src
 }
 
 func (a *Args) GetDest() string {

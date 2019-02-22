@@ -35,6 +35,14 @@ type Error struct {
 	OriginalErr error
 }
 
+type MovePlan struct {
+	Collection    *Collection
+	MovingFromAbs string
+	MovingFromRel string
+	MovingToRel   string
+	MasterDir     string
+}
+
 func (e Error) Error() string {
 	return e.Message
 }

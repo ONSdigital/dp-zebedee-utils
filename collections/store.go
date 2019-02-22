@@ -4,12 +4,10 @@ import (
 	"bufio"
 	"encoding/json"
 	"github.com/ONSdigital/log.go/log"
-	"io"
 	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
-	"strings"
 )
 
 const filePerm = 0755
@@ -41,6 +39,15 @@ func Exists(filePath string) bool {
 	return true
 }
 
+func IsMoveBlocked(relURI string, cols []*Collection) error {
+	for _, c := range cols {
+		if c.Contains(relURI) {
+			return newErr("cannot complete move as file containing the target uri is in another collections", nil, log.Data{"file": relURI, "collection": c.Name})
+		}
+	}
+	return nil
+}
+
 func Delete(rootPath string, name string) error {
 	target := path.Join(rootPath, name)
 	if !Exists(target) {
@@ -49,109 +56,6 @@ func Delete(rootPath string, name string) error {
 
 	log.Event(nil, "deleting collection", log.Data{"collection": target})
 	return os.RemoveAll(target)
-}
-
-func MoveContent(c *Collection, currentTaxonomy string, newTaxonomy string) error {
-	return filepath.Walk(currentTaxonomy, func(contentAbsolutePath string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		// Make the file path relative to the master directory
-		// i.e /zebedee/content/master/aboutus/data.json -> /aboutus/data.json
-		taxonomyURI, _ := filepath.Rel(currentTaxonomy, contentAbsolutePath)
-
-		// Collection uri is the absolute path of the file in the collection's in progress dir
-		// e.g. /zebedee/content/collections/test123/inprogress/aboutus/data.json
-		collectionURI := c.inProgressURI(path.Join(newTaxonomy, taxonomyURI))
-
-		// Create the taxonomy directory in the collection
-		if info.IsDir() {
-			return createContentDirInCollection(collectionURI)
-		}
-
-		// otherwise copy the file into the new location within the collection directory
-		return createContentFileInCollection(contentAbsolutePath, collectionURI)
-	})
-	return nil
-}
-
-func createContentDirInCollection(collectionURI string) error {
-	if err := os.MkdirAll(collectionURI, filePerm); err != nil {
-		return err
-	}
-	return nil
-}
-
-func createContentFileInCollection(srcFilePath string, collectionURI string) error {
-	destFile, err := os.Create(collectionURI)
-	if err != nil {
-		return err
-	}
-	defer destFile.Close()
-
-	srcFile, err := os.Open(srcFilePath)
-	if err != nil {
-		return err
-	}
-	defer srcFile.Close()
-
-
-	data := log.Data{"from": srcFilePath, "to": collectionURI}
-	log.Event(nil, "copying content", data)
-
-	_, err = io.Copy(destFile, srcFile)
-	if err != nil {
-		return newErr("failed to copy", err, data)
-	}
-	return nil
-}
-
-func fixURI(f []byte, newUri string) ([]byte, error) {
-	var page map[string]interface{}
-	if err := json.Unmarshal(f, &page); err != nil {
-		return nil, err
-	}
-
-	if _, ok := page["uri"]; ok {
-		page["uri"] = strings.TrimRight(newUri, "/")
-	}
-
-	modified, err := json.MarshalIndent(page, "", " ")
-	if err != nil {
-		return nil, err
-	}
-	return modified, nil
-}
-
-func FindBrokenLinks(root string, src string) []string {
-	filesToFix := make([]string, 0)
-	log.Event(nil, "scanning published content for broken links", log.Data{"link": src})
-
-	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if info.IsDir() || info.Name() != "data.json" {
-			return nil
-		}
-
-		b, err := ioutil.ReadFile(path)
-		if err != nil {
-			return err
-		}
-
-		if strings.Contains(string(b), src) {
-			filesToFix = append(filesToFix, path)
-		}
-		return nil
-	})
-
-	if err != nil {
-		log.Event(nil, "failed to find broken links for content move", log.Error(err))
-		os.Exit(1)
-	}
-	return filesToFix
 }
 
 func LoadCollections(collectionsRoot string) ([]*Collection, error) {
@@ -194,6 +98,16 @@ func LoadCollection(collectionsRoot string, name string) (*Collection, error) {
 	}
 	col.Metadata = metadata
 	return &col, nil
+}
+
+func WriteFileToCollection(c *Collection, relPath string, fileBytes []byte) error {
+	uri := c.inProgressURI(relPath)
+	dirs, _ := filepath.Split(uri)
+
+	if err := os.MkdirAll(dirs, filePerm); err != nil {
+		return err
+	}
+	return ioutil.WriteFile(uri, fileBytes, filePerm)
 }
 
 func createCollectionDirectories(c *Collection) error {
