@@ -12,6 +12,7 @@ type Args struct {
 	collectionName string
 	src            string
 	dest           string
+	create         bool
 }
 
 func (a *Args) GetCollectionsDir() string {
@@ -42,9 +43,14 @@ func (a *Args) GetZebedeeDir() string {
 	return a.zebRoot
 }
 
+func (a *Args) CreateCollection() bool {
+	return a.create
+}
+
 func GetArgs() *Args {
 	zebRoot := flag.String("zeb_root", "", "")
 	collectionName := flag.String("collection", "", "")
+	create := flag.Bool("create", false, "")
 	src := flag.String("src", "", "")
 	dest := flag.String("dest", "", "")
 	flag.Parse()
@@ -74,5 +80,6 @@ func GetArgs() *Args {
 		collectionName: *collectionName,
 		src:            *src,
 		dest:           *dest,
+		create:         *create,
 	}
 }

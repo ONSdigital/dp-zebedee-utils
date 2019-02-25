@@ -18,6 +18,19 @@ func main() {
 		"collection": args.GetCollectionName(),
 	})
 
+	if args.CreateCollection() {
+		log.Event(nil, "creating new collection")
+
+		col := collections.New(args.GetCollectionsDir(), args.GetCollectionName())
+		if err := collections.Save(col); err != nil {
+			logAndExit(err)
+		}
+	}
+
+	doMove(args)
+}
+
+func doMove(args *config.Args) {
 	plan := collections.MovePlan{
 		MovingFromAbs: args.GetAbsSrc(),
 		MovingFromRel: args.GetRelSrc(),
@@ -32,7 +45,12 @@ func main() {
 	}
 
 	// load the existing collections.
-	cols, err := collections.LoadCollections(args.GetCollectionsDir())
+	cols, err := collections.GetCollections(args.GetCollectionsDir())
+	if err != nil {
+		logAndExit(err)
+	}
+
+	plan.Collection, err = cols.GetByName(args.GetCollectionName())
 	if err != nil {
 		logAndExit(err)
 	}
@@ -43,18 +61,10 @@ func main() {
 		if err != nil {
 			logAndExit(err)
 		}
-		if err := collections.IsMoveBlocked(relURI, cols); err != nil {
+		if err := collections.IsMoveBlocked(relURI, cols, plan.Collection); err != nil {
 			logAndExit(err)
 		}
 	}
-
-	// move not blocked so create a new collection for the move
-	col := collections.New(args.GetCollectionsDir(), args.GetCollectionName())
-	if err := collections.Save(col); err != nil {
-		logAndExit(err)
-	}
-
-	plan.Collection = col
 
 	// do the move.
 	movedUris, err := collections.MoveContent(plan)
@@ -70,7 +80,7 @@ func main() {
 	sanitisedMoves := make(map[string]string)
 	for src, dest := range movedUris {
 		srcRel, _ := filepath.Rel(args.GetMasterDir(), src)
-		destRel, _ := filepath.Rel(col.GetInProgress(), dest)
+		destRel, _ := filepath.Rel(plan.Collection.GetInProgress(), dest)
 		sanitisedMoves[srcRel] = destRel
 	}
 
@@ -78,7 +88,7 @@ func main() {
 		"collection":    args.GetCollectionName(),
 		"move_src":      args.GetRelSrc(),
 		"move_dest":     args.GetDest(),
-		"moved_content": humanizeMoveResults(movedUris, args.GetMasterDir(), col),
+		"moved_content": humanizeMoveResults(movedUris, args.GetMasterDir(), plan.Collection),
 		"link_fixes":    humanizeLinkFixResults(fixedLinks, args.GetMasterDir()),
 	})
 }

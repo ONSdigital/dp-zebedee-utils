@@ -99,7 +99,7 @@ func FixUris(p MovePlan, affectedFiles map[string]string, completedMoves map[str
 		fileStr = strings.Replace(fileStr, p.MovingFromRel, p.MovingToRel, -1)
 		relPath, _ := filepath.Rel(p.MasterDir, srcFilePath)
 
-		if err := WriteFileToCollection(p.Collection, relPath, []byte(fileStr)); err != nil {
+		if err := p.Collection.AddContent(relPath, []byte(fileStr)); err != nil {
 			return nil, err
 		}
 		brokenLinks = append(brokenLinks, srcFilePath)
