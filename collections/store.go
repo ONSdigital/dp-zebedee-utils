@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"github.com/ONSdigital/log.go/log"
+	"io"
 	"io/ioutil"
 	"os"
 	"path"
@@ -26,15 +27,15 @@ func Exists(filePath string) bool {
 // Save a collection
 func Save(c *Collection) error {
 	if Exists(c.Metadata.CollectionRoot) {
-		return newErr("cannot create collection as a collection with this name already exists", nil, log.Data{"name": c.Name})
+		return NewErr("cannot create collection as a collection with this name already exists", nil, log.Data{"name": c.Name})
 	}
 
 	if err := createCollectionDirectories(c); err != nil {
-		return newErr("error creating collection directories", err, log.Data{"name": c.Name})
+		return NewErr("error creating collection directories", err, log.Data{"name": c.Name})
 	}
 
 	if err := createCollectionJson(c); err != nil {
-		return newErr("error creating collection json", err, log.Data{"name": c.Name})
+		return NewErr("error creating collection json", err, log.Data{"name": c.Name})
 	}
 	log.Event(nil, "collection created successfully", log.Data{"collection": c.Name})
 	return nil
@@ -44,7 +45,7 @@ func Save(c *Collection) error {
 func Delete(rootPath string, name string) error {
 	target := path.Join(rootPath, name)
 	if !Exists(target) {
-		return newErr("cannot delete collection as it does not exist", nil, log.Data{"collection": name})
+		return NewErr("cannot delete collection as it does not exist", nil, log.Data{"collection": name})
 	}
 
 	log.Event(nil, "deleting collection", log.Data{"collection": target})
@@ -77,7 +78,7 @@ func GetCollections(collectionsRoot string) (*Collections, error) {
 	log.Event(nil, "loading existing collections")
 	collectionFiles, err := ioutil.ReadDir(collectionsRoot)
 	if err != nil {
-		return nil, newErr("failed to read collections dir", err, nil)
+		return nil, NewErr("failed to read collections dir", err, nil)
 	}
 
 	collections := &Collections{Collections: make([]*Collection, 0)}
@@ -86,7 +87,7 @@ func GetCollections(collectionsRoot string) (*Collections, error) {
 		if f.IsDir() {
 			c, err := GetCollection(collectionsRoot, f.Name())
 			if err != nil {
-				return nil, newErr("failed to load collection", err, log.Data{"collectionName": f.Name()})
+				return nil, NewErr("failed to load collection", err, log.Data{"collectionName": f.Name()})
 			}
 			collections.Add(c)
 		}
@@ -94,14 +95,10 @@ func GetCollections(collectionsRoot string) (*Collections, error) {
 	return collections, nil
 }
 
-func IsMoveBlocked(relURI string, cols *Collections, moveCollection *Collection) error {
+func GetCollectionContaining(relURI string, cols *Collections) *Collection {
 	for _, c := range cols.Collections {
-		if c.Name == moveCollection.Name {
-			// skip this one.
-			continue
-		}
 		if c.Contains(relURI) {
-			return newErr("cannot complete move as file containing the target uri is in another collections", nil, log.Data{"file": relURI, "collection": c.Name})
+			return c
 		}
 	}
 	return nil
@@ -116,14 +113,41 @@ func writeContent(uri string, fileBytes []byte) error {
 	return ioutil.WriteFile(uri, fileBytes, filePerm)
 }
 
-func WriteFileToCollection(c *Collection, relPath string, fileBytes []byte) error {
-	uri := c.inProgressURI(relPath)
-	dirs, _ := filepath.Split(uri)
+func moveContent(srcFilePath string, collectionURI string) error {
+	dirs, _ := filepath.Split(collectionURI)
 
 	if err := os.MkdirAll(dirs, filePerm); err != nil {
 		return err
 	}
-	return ioutil.WriteFile(uri, fileBytes, filePerm)
+
+	destFile, err := os.Create(collectionURI)
+	if err != nil {
+		return err
+	}
+	defer destFile.Close()
+
+	srcFile, err := os.Open(srcFilePath)
+	if err != nil {
+		return err
+	}
+	defer srcFile.Close()
+
+	data := log.Data{"from": srcFilePath, "to": destFile.Name()}
+	copied, err := io.Copy(destFile, srcFile)
+	if err != nil {
+		return NewErr("failed to copy", err, data)
+	}
+
+	info, err := srcFile.Stat()
+	if err != nil {
+		return err
+	}
+	if copied != info.Size() {
+		data["expected"] = info.Size()
+		data["actual"] = copied
+		return NewErr("move content failure: copied bytes did not match the expected", nil, data)
+	}
+	return nil
 }
 
 func createCollectionDirectories(c *Collection) error {

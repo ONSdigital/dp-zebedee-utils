@@ -22,7 +22,7 @@ func (e Error) Error() string {
 	return e.Message
 }
 
-func newErr(message string, err error, data log.Data) Error {
+func NewErr(message string, err error, data log.Data) Error {
 	return Error{
 		Message:     message,
 		Data:        data,

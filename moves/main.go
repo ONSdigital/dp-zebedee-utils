@@ -61,7 +61,16 @@ func doMove(args *config.Args) {
 		if err != nil {
 			logAndExit(err)
 		}
-		if err := collections.IsMoveBlocked(relURI, cols, plan.Collection); err != nil {
+
+		blockingCollection := collections.GetCollectionContaining(relURI, cols)
+		if blockingCollection != nil && blockingCollection.Name != plan.Collection.Name {
+			err := collections.NewErr(
+				"cannot proceed with move as affected uri is contained in another collection",
+				nil,
+				log.Data{
+					"collection": blockingCollection,
+					"uri":        relURI,
+				})
 			logAndExit(err)
 		}
 	}
@@ -77,39 +86,13 @@ func doMove(args *config.Args) {
 		logAndExit(err)
 	}
 
-	sanitisedMoves := make(map[string]string)
-	for src, dest := range movedUris {
-		srcRel, _ := filepath.Rel(args.GetMasterDir(), src)
-		destRel, _ := filepath.Rel(plan.Collection.GetInProgress(), dest)
-		sanitisedMoves[srcRel] = destRel
-	}
-
 	log.Event(nil, "content move completed successfully", log.Data{
 		"collection":    args.GetCollectionName(),
 		"move_src":      args.GetRelSrc(),
 		"move_dest":     args.GetDest(),
-		"moved_content": humanizeMoveResults(movedUris, args.GetMasterDir(), plan.Collection),
-		"link_fixes":    humanizeLinkFixResults(fixedLinks, args.GetMasterDir()),
+		"moved_content": movedUris,
+		"link_fixes":    fixedLinks,
 	})
-}
-
-func humanizeMoveResults(movedUris map[string]string, masterDir string, col *collections.Collection) map[string]string {
-	sanitisedMoves := make(map[string]string)
-	for src, dest := range movedUris {
-		srcRel, _ := filepath.Rel(masterDir, src)
-		destRel, _ := filepath.Rel(col.GetInProgress(), dest)
-		sanitisedMoves[srcRel] = destRel
-	}
-	return sanitisedMoves
-}
-
-func humanizeLinkFixResults(linkFixes []string, masterDir string) []string {
-	humanized := make([]string, 0)
-	for _, raw := range linkFixes {
-		s, _ := filepath.Rel(masterDir, raw)
-		humanized = append(humanized, s)
-	}
-	return humanized
 }
 
 func logAndExit(err error) {

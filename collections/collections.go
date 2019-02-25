@@ -4,7 +4,10 @@ import (
 	"fmt"
 	"github.com/ONSdigital/log.go/log"
 	"github.com/satori/go.uuid"
+	"io/ioutil"
 	"path"
+	"path/filepath"
+	"strings"
 )
 
 type Metadata struct {
@@ -39,7 +42,7 @@ func (c *Collections) GetByName(name string) (*Collection, error) {
 			return col, nil
 		}
 	}
-	return nil, newErr("collection not found", nil, log.Data{"collection": name})
+	return nil, NewErr("collection not found", nil, log.Data{"collection": name})
 }
 
 func (c *Collections) Add(col *Collection) {
@@ -133,6 +136,32 @@ func (c *Collection) Contains(uri string) bool {
 func (c *Collection) AddContent(uri string, fileBytes []byte) error {
 	collectionURI := c.inProgressURI(uri)
 	return writeContent(collectionURI, fileBytes)
+}
+
+func (c *Collection) MoveContent(absoluteSrcPath string, relSrcPath string, relDestUri string) error {
+	absoluteDest := c.inProgressURI(relDestUri)
+
+	// if not a .json file just copy it into the new location.
+	if filepath.Ext(absoluteSrcPath) != ".json" {
+		return moveContent(absoluteSrcPath, absoluteDest)
+	}
+
+	// otherwise we have to read the file into memory so we can check if we need fix any broken links before moving it
+	// to its new location.
+	b, err := ioutil.ReadFile(absoluteSrcPath)
+	if err != nil {
+		return err
+	}
+	return writeContent(absoluteDest, FixBrokenLinks(b, relSrcPath, relDestUri))
+}
+
+func FixBrokenLinks(fileBytes []byte, old string, new string) []byte {
+	fileStr := string(fileBytes)
+	if !strings.Contains(fileStr, old) {
+		return fileBytes
+	}
+	fileStr = strings.Replace(fileStr, old, new, -1)
+	return []byte(fileStr)
 }
 
 func (c *Collection) inProgressURI(taxonomyURI string) string {
