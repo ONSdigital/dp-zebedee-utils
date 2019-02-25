@@ -58,9 +58,12 @@ cd dp-zebedee-utils/moves
 
 ### Example
 
+Compile:
 ```
 go build -o moves
-
+```
+Run:
+```
 ./moves -zeb_root="/zebedee_root" \
             -create=true \
             -collection="testCollection" \
