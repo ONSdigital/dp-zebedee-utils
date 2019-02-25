@@ -56,6 +56,7 @@ cd dp-zebedee-utils/moves
 | dest       | The uri to move the content to                 |
 | create     | Should a new collection be created?            |
 
+### Example
 
 ```
 go build -o moves
