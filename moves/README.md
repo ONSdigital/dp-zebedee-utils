@@ -46,9 +46,23 @@ cd dp-zebedee-utils/moves
 
 ## Running the script.
 
+### Config
+
 | Flag       | Description                                    |
 |------------|:-----------------------------------------------|
 | zeb_root   | The zebedee root directory                     |
 | collection | The name of the collection to use for the move |
 | src        | The uri of the published content to be moved   |
 | dest       | The uri to move the content to                 |
+| create     | Should a new collection be created?            |
+
+
+```
+go build -o moves
+
+./moves -zeb_root="/zebedee_root" \
+            -create=true \
+            -collection="testCollection" \
+            -src="/aaa/bbb/ccc" \
+            -dest="/aaa/bbb/ccc/ddd"
+```
