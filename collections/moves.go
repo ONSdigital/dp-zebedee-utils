@@ -9,38 +9,46 @@ import (
 	"strings"
 )
 
-func MoveContent(plan MovePlan) (map[string]string, error) {
+type ContentMove struct {
+	Collection    *Collection
+	MovingFromAbs string
+	MovingFromRel string
+	MovingToRel   string
+	MasterDir     string
+}
+
+func MoveContent(move ContentMove) (map[string]string, error) {
 	// from -> to
 	completedMoves := make(map[string]string)
 
-	err := filepath.Walk(plan.MovingFromAbs, func(absoluteSrcPath string, info os.FileInfo, err error) error {
+	err := filepath.Walk(move.MovingFromAbs, func(absoluteSrcPath string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 
-		if plan.MovingFromAbs == absoluteSrcPath || info.IsDir() {
+		if move.MovingFromAbs == absoluteSrcPath || info.IsDir() {
 			return nil
 		}
 
 		// relative to the root dir of the content being move.
-		uri, _ := filepath.Rel(plan.MovingFromAbs, absoluteSrcPath)
+		uri, _ := filepath.Rel(move.MovingFromAbs, absoluteSrcPath)
 
 		// the taxonomy uri the content is being moved to
-		moveToTaxonomyURI := path.Join(plan.MovingToRel, uri)
+		moveToTaxonomyURI := path.Join(move.MovingToRel, uri)
 
-		err = plan.Collection.MoveContent(absoluteSrcPath, plan.MovingFromRel, moveToTaxonomyURI)
+		err = move.Collection.MoveContent(absoluteSrcPath, move.MovingFromRel, moveToTaxonomyURI)
 		if err != nil {
 			return err
 		}
 
-		relSrc, _ := filepath.Rel(plan.MasterDir, absoluteSrcPath)
+		relSrc, _ := filepath.Rel(move.MasterDir, absoluteSrcPath)
 		completedMoves[relSrc] = moveToTaxonomyURI
 		return nil
 	})
 	return completedMoves, err
 }
 
-func FindUsesOfUris(p MovePlan) (map[string]string, error) {
+func FindUsesOfUris(p ContentMove) (map[string]string, error) {
 	log.Event(nil, "Scanning master for uses of uri", log.Data{"uri": p.MovingFromRel})
 	brokenUris := make(map[string]string)
 
@@ -68,7 +76,7 @@ func FindUsesOfUris(p MovePlan) (map[string]string, error) {
 	return brokenUris, err
 }
 
-func FixUris(p MovePlan, affectedFiles map[string]string, completedMoves map[string]string) ([]string, error) {
+func FixUris(p ContentMove, affectedFiles map[string]string, completedMoves map[string]string) ([]string, error) {
 	brokenLinks := make([]string, 0)
 	for _, srcFilePath := range affectedFiles {
 		relURI, err := filepath.Rel(p.MasterDir, srcFilePath)

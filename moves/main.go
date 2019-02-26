@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/ONSdigital/dp-zebedee-utils/collections"
+	"github.com/ONSdigital/dp-zebedee-utils/errs"
 	"github.com/ONSdigital/dp-zebedee-utils/moves/config"
 	"github.com/ONSdigital/log.go/log"
 	"os"
@@ -10,28 +11,33 @@ import (
 
 func main() {
 	log.Namespace = "content-mover"
-	args := config.GetArgs()
 
-	log.Event(nil, "moving content", log.Data{
+	args, err := config.GetArgs()
+	if err != nil {
+		logAndExit(err)
+	}
+
+	log.Event(nil, "Content move configuration", log.Data{
 		"src":        args.GetRelSrc(),
+		"create":     args.CreateCollection(),
 		"dest":       args.GetDest(),
 		"collection": args.GetCollectionName(),
 	})
 
 	if args.CreateCollection() {
-		log.Event(nil, "creating new collection")
-
 		col := collections.New(args.GetCollectionsDir(), args.GetCollectionName())
 		if err := collections.Save(col); err != nil {
 			logAndExit(err)
 		}
 	}
 
-	doMove(args)
+	if err := doMove(args); err != nil {
+		logAndExit(err)
+	}
 }
 
-func doMove(args *config.Args) {
-	plan := collections.MovePlan{
+func doMove(args *config.Args) error {
+	plan := collections.ContentMove{
 		MovingFromAbs: args.GetAbsSrc(),
 		MovingFromRel: args.GetRelSrc(),
 		MovingToRel:   args.GetDest(),
@@ -41,49 +47,42 @@ func doMove(args *config.Args) {
 	// find all the pages in master that contain the uri being moved.
 	pagesContainingURI, err := collections.FindUsesOfUris(plan)
 	if err != nil {
-		logAndExit(err)
+		return err
 	}
 
 	// load the existing collections.
 	cols, err := collections.GetCollections(args.GetCollectionsDir())
 	if err != nil {
-		logAndExit(err)
+		return err
 	}
 
 	plan.Collection, err = cols.GetByName(args.GetCollectionName())
 	if err != nil {
-		logAndExit(err)
+		return err
 	}
 
 	// check that none of the affected files are in another collection
 	for _, usage := range pagesContainingURI {
 		relURI, err := filepath.Rel(plan.MasterDir, usage)
 		if err != nil {
-			logAndExit(err)
+			return err
 		}
 
 		blockingCollection := collections.GetCollectionContaining(relURI, cols)
 		if blockingCollection != nil && blockingCollection.Name != plan.Collection.Name {
-			err := collections.NewErr(
-				"cannot proceed with move as affected uri is contained in another collection",
-				nil,
-				log.Data{
-					"collection": blockingCollection,
-					"uri":        relURI,
-				})
-			logAndExit(err)
+			return errs.New("cannot proceed with move as affected uri is contained in another collection", nil, log.Data{"collection": blockingCollection, "uri": relURI})
 		}
 	}
 
 	// do the move.
 	movedUris, err := collections.MoveContent(plan)
 	if err != nil {
-		logAndExit(err)
+		return err
 	}
 
 	fixedLinks, err := collections.FixUris(plan, pagesContainingURI, movedUris)
 	if err != nil {
-		logAndExit(err)
+		return err
 	}
 
 	log.Event(nil, "content move completed successfully", log.Data{
@@ -93,10 +92,11 @@ func doMove(args *config.Args) {
 		"moved_content": movedUris,
 		"link_fixes":    fixedLinks,
 	})
+	return nil
 }
 
 func logAndExit(err error) {
-	if colErr, ok := err.(collections.Error); ok {
+	if colErr, ok := err.(errs.Error); ok {
 		if colErr.OriginalErr != nil {
 			log.Event(nil, colErr.Message, log.Error(colErr.OriginalErr), colErr.Data)
 		} else {

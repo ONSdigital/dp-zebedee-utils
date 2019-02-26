@@ -3,6 +3,7 @@ package collections
 import (
 	"bufio"
 	"encoding/json"
+	"github.com/ONSdigital/dp-zebedee-utils/errs"
 	"github.com/ONSdigital/log.go/log"
 	"io"
 	"io/ioutil"
@@ -27,15 +28,15 @@ func Exists(filePath string) bool {
 // Save a collection
 func Save(c *Collection) error {
 	if Exists(c.Metadata.CollectionRoot) {
-		return NewErr("cannot create collection as a collection with this name already exists", nil, log.Data{"name": c.Name})
+		return errs.New("cannot create collection as a collection with this name already exists", nil, log.Data{"name": c.Name})
 	}
 
 	if err := createCollectionDirectories(c); err != nil {
-		return NewErr("error creating collection directories", err, log.Data{"name": c.Name})
+		return errs.New("error creating collection directories", err, log.Data{"name": c.Name})
 	}
 
 	if err := createCollectionJson(c); err != nil {
-		return NewErr("error creating collection json", err, log.Data{"name": c.Name})
+		return errs.New("error creating collection json", err, log.Data{"name": c.Name})
 	}
 	log.Event(nil, "collection created successfully", log.Data{"collection": c.Name})
 	return nil
@@ -45,7 +46,7 @@ func Save(c *Collection) error {
 func Delete(rootPath string, name string) error {
 	target := path.Join(rootPath, name)
 	if !Exists(target) {
-		return NewErr("cannot delete collection as it does not exist", nil, log.Data{"collection": name})
+		return errs.New("cannot delete collection as it does not exist", nil, log.Data{"collection": name})
 	}
 
 	log.Event(nil, "deleting collection", log.Data{"collection": target})
@@ -78,7 +79,7 @@ func GetCollections(collectionsRoot string) (*Collections, error) {
 	log.Event(nil, "loading existing collections")
 	collectionFiles, err := ioutil.ReadDir(collectionsRoot)
 	if err != nil {
-		return nil, NewErr("failed to read collections dir", err, nil)
+		return nil, errs.New("failed to read collections dir", err, nil)
 	}
 
 	collections := &Collections{Collections: make([]*Collection, 0)}
@@ -87,7 +88,7 @@ func GetCollections(collectionsRoot string) (*Collections, error) {
 		if f.IsDir() {
 			c, err := GetCollection(collectionsRoot, f.Name())
 			if err != nil {
-				return nil, NewErr("failed to load collection", err, log.Data{"collectionName": f.Name()})
+				return nil, errs.New("failed to load collection", err, log.Data{"collectionName": f.Name()})
 			}
 			collections.Add(c)
 		}
@@ -135,7 +136,7 @@ func moveContent(srcFilePath string, collectionURI string) error {
 	data := log.Data{"from": srcFilePath, "to": destFile.Name()}
 	copied, err := io.Copy(destFile, srcFile)
 	if err != nil {
-		return NewErr("failed to copy", err, data)
+		return errs.New("failed to copy", err, data)
 	}
 
 	info, err := srcFile.Stat()
@@ -145,7 +146,7 @@ func moveContent(srcFilePath string, collectionURI string) error {
 	if copied != info.Size() {
 		data["expected"] = info.Size()
 		data["actual"] = copied
-		return NewErr("move content failure: copied bytes did not match the expected", nil, data)
+		return errs.New("move content failure: copied bytes did not match the expected", nil, data)
 	}
 	return nil
 }

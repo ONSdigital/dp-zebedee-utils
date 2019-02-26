@@ -2,6 +2,7 @@ package collections
 
 import (
 	"fmt"
+	"github.com/ONSdigital/dp-zebedee-utils/errs"
 	"github.com/ONSdigital/log.go/log"
 	"github.com/satori/go.uuid"
 	"io/ioutil"
@@ -42,7 +43,7 @@ func (c *Collections) GetByName(name string) (*Collection, error) {
 			return col, nil
 		}
 	}
-	return nil, NewErr("collection not found", nil, log.Data{"collection": name})
+	return nil, errs.New("collection not found", nil, log.Data{"collection": name})
 }
 
 func (c *Collections) Add(col *Collection) {

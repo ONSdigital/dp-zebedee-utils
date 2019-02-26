@@ -6,7 +6,7 @@ go build -o moves
 
 ECHO "executing move 2 - augusy ...."
 
-./moves -zeb_root="/zebe-test" \
+../moves -zeb_root="/zebe-test" \
     -create=true \
 	-collection="move2-developingnewmeasuresofinfrastructureinvestment" \
 	-src="/economy/economicoutputandproductivity/productivitymeasures/articles/developingnewmeasuresofinfrastructureinvestment/augusy2018" \

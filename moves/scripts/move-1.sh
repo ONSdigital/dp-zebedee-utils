@@ -6,7 +6,7 @@ go build -o moves
 
 ECHO "executing move 1 - Experimental estimates...."
 
-./moves -zeb_root="/zebe-test" \
+../moves -zeb_root="/zebe-test" \
     -create=true \
 	-collection="move1_experimentalEstimates" \
 	-src="/economy/economicoutputandproductivity/productivitymeasures/articles/experimentalestimatesofinvestmentinintangibleassetsintheuk2015" \

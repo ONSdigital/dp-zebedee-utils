@@ -2,8 +2,8 @@ package config
 
 import (
 	"flag"
+	"github.com/ONSdigital/dp-zebedee-utils/errs"
 	"github.com/ONSdigital/log.go/log"
-	"os"
 	"path"
 )
 
@@ -47,32 +47,28 @@ func (a *Args) CreateCollection() bool {
 	return a.create
 }
 
-func GetArgs() *Args {
-	zebRoot := flag.String("zeb_root", "", "")
-	collectionName := flag.String("collection", "", "")
-	create := flag.Bool("create", false, "")
-	src := flag.String("src", "", "")
-	dest := flag.String("dest", "", "")
+func GetArgs() (*Args, error) {
+	zebRoot := flag.String("zeb_root", "", "The root zebedee directory")
+	collectionName := flag.String("collection", "", "The name of the collection to use")
+	create := flag.Bool("create", false, "True flag to create a collection, false to load the collection specified")
+	src := flag.String("src", "", "The source taxonomy uri of the content to move")
+	dest := flag.String("dest", "", "The destination taxonomy uri to move the content to")
 	flag.Parse()
 
 	if *zebRoot == "" {
-		log.Event(nil, "missing flag", log.Data{"var": "zeb_root"})
-		os.Exit(1)
+		return nil, errs.New("missing flag", nil, log.Data{"var": "zeb_root"})
 	}
 
 	if *collectionName == "" {
-		log.Event(nil, "missing flag", log.Data{"var": "collection"})
-		os.Exit(1)
+		return nil, errs.New("missing flag", nil, log.Data{"var": "collection"})
 	}
 
 	if *src == "" {
-		log.Event(nil, "missing flag", log.Data{"var": "src"})
-		os.Exit(1)
+		return nil, errs.New("missing flag", nil, log.Data{"var": "src"})
 	}
 
 	if *dest == "" {
-		log.Event(nil, "missing flag", log.Data{"var": "dest"})
-		os.Exit(1)
+		return nil, errs.New("missing flag", nil, log.Data{"var": "dest"})
 	}
 
 	return &Args{
@@ -81,5 +77,5 @@ func GetArgs() *Args {
 		src:            *src,
 		dest:           *dest,
 		create:         *create,
-	}
+	}, nil
 }
