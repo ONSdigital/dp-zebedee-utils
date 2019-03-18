@@ -2,15 +2,25 @@ package main
 
 import (
 	"flag"
-	"fmt"
+	"github.com/ONSdigital/dp-zebedee-utils/collections"
 	"github.com/ONSdigital/log.go/log"
 	"github.com/pkg/errors"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 )
+
+const (
+	oldEmail = "@ons.gsi.gov.uk"
+	newEmail = "@ons.gov.uk"
+)
+
+type Tracker struct {
+	blocked []string
+	fixed   int
+	skipped int
+}
 
 type Err struct {
 	Data log.Data
@@ -22,19 +32,24 @@ func (e Err) Error() string {
 }
 
 func main() {
-	master := getConfig()
+	log.Namespace = "fi-xxx-er"
+	master, collectionsDir := getConfig()
 
-	uses, err := findUses(master, "@ons.gsi.gov.uk")
+	t, err := findAndReplace(master, collectionsDir)
 	if err != nil {
 		errExit(err)
 	}
 
-	log.Event(nil, "results", log.Data{"uses": len(uses)})
-	log.Event(nil, "subset", log.Data{"uses": uses[:20]})
+	log.Event(nil, "blocked", log.Data{
+		"blocked": len(t.blocked),
+		"fixed":   t.fixed,
+		"skipped": t.skipped,
+	})
 }
 
-func getConfig() string {
+func getConfig() (string, string) {
 	master := flag.String("master", "", "the zebedee master dir")
+	collectionsDir := flag.String("collections", "", "the zebedee collections dir")
 	flag.Parse()
 
 	if *master == "" {
@@ -44,33 +59,37 @@ func getConfig() string {
 	if !Exists(*master) {
 		errExit(Err{Err: errors.New("master dir does not exist"), Data: log.Data{"master": *master}})
 	}
-	return *master
-}
 
-func findUses(masterDir string, targetVal string) ([]string, error) {
-	uses := make([]string, 0)
-	ticker := func (c chan bool) {
-		run := true
-		for run {
-			select{
-				case <- c:
-					run = false
-			default:
-				time.Sleep(time.Second * 3)
-				fmt.Print(".")
-			}
-		}
+	if *collectionsDir == "" {
+		errExit(errors.New("collections dir not specified"))
 	}
 
-	log.Event(nil, "scanner master dir for uses of target value", log.Data{"target_value": targetVal})
-	exitChan := make(chan bool, 0)
-	defer func() {
-		exitChan <- true
-	}()
-	go ticker(exitChan)
+	if !Exists(*collectionsDir) {
+		errExit(Err{Err: errors.New("collections dir does not exist"), Data: log.Data{"collectionsDir": *collectionsDir}})
+	}
 
-	err := filepath.Walk(masterDir, func(path string, info os.FileInfo, err error) error {
+	return *master, *collectionsDir
+}
 
+func findAndReplace(masterDir string, collectionsDir string) (*Tracker, error) {
+	cols, err := collections.GetCollections(collectionsDir)
+	if err != nil {
+		return nil, err
+	}
+
+	log.Event(nil, "scanner master dir for uses of target value", log.Data{"target_value": oldEmail})
+
+	t := &Tracker{
+		blocked: make([]string, 0),
+		fixed:   0,
+		skipped: 0,
+	}
+	err = filepath.Walk(masterDir, fileWalker(cols, masterDir, t))
+	return t, err
+}
+
+func fileWalker(cols *collections.Collections, masterDir string, t *Tracker) func(path string, info os.FileInfo, err error) error {
+	return func(path string, info os.FileInfo, err error) error {
 		if info.IsDir() {
 			return nil
 		}
@@ -81,14 +100,34 @@ func findUses(masterDir string, targetVal string) ([]string, error) {
 			if err != nil {
 				return err
 			}
+			raw := string(b)
 
-			if strings.Contains(string(b), targetVal) {
-				uses = append(uses, path)
+			if strings.Contains(raw, oldEmail) {
+
+				if strings.Contains(path, "/previous/") ||
+					strings.Contains(path, "/datasets/") ||
+					strings.Contains(path, "/timeseries/") {
+					t.skipped++
+					return nil
+				}
+
+				uri, err := filepath.Rel(masterDir, path)
+				if err != nil {
+					return err
+				}
+
+				uri = "/" + uri
+				for _, c := range cols.Collections {
+					if c.Contains(uri) {
+						t.blocked = append(t.blocked, uri)
+						break
+					}
+				}
+				t.fixed++
 			}
 		}
 		return nil
-	})
-	return uses, err
+	}
 }
 
 func Exists(filePath string) bool {
