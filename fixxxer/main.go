@@ -17,9 +17,11 @@ const (
 )
 
 type Tracker struct {
-	blocked []string
-	fixed   int
-	skipped int
+	blocked    []string
+	fixed      int
+	datasets   int
+	timeseries int
+	previous   int
 }
 
 type Err struct {
@@ -41,9 +43,10 @@ func main() {
 	}
 
 	log.Event(nil, "blocked", log.Data{
-		"blocked": len(t.blocked),
-		"fixed":   t.fixed,
-		"skipped": t.skipped,
+		"blocked":    len(t.blocked),
+		"timeseries": t.timeseries,
+		"datasets":   t.datasets,
+		"previous":   t.previous,
 	})
 }
 
@@ -80,9 +83,11 @@ func findAndReplace(masterDir string, collectionsDir string) (*Tracker, error) {
 	log.Event(nil, "scanner master dir for uses of target value", log.Data{"target_value": oldEmail})
 
 	t := &Tracker{
-		blocked: make([]string, 0),
-		fixed:   0,
-		skipped: 0,
+		blocked:    make([]string, 0),
+		fixed:      0,
+		datasets:   0,
+		timeseries: 0,
+		previous:   0,
 	}
 	err = filepath.Walk(masterDir, fileWalker(cols, masterDir, t))
 	return t, err
@@ -103,11 +108,16 @@ func fileWalker(cols *collections.Collections, masterDir string, t *Tracker) fun
 			raw := string(b)
 
 			if strings.Contains(raw, oldEmail) {
-
-				if strings.Contains(path, "/previous/") ||
-					strings.Contains(path, "/datasets/") ||
-					strings.Contains(path, "/timeseries/") {
-					t.skipped++
+				if strings.Contains(path, "/previous/") {
+					t.previous++
+					return nil
+				}
+				if strings.Contains(path, "/datasets/") {
+					t.datasets++
+					return nil
+				}
+				if strings.Contains(path, "/timeseries/") {
+					t.timeseries++
 					return nil
 				}
 
