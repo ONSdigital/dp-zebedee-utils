@@ -17,11 +17,9 @@ const (
 )
 
 type Tracker struct {
-	blocked    []string
-	fixed      int
-	datasets   int
-	timeseries int
-	previous   int
+	total   int
+	blocked []string
+	fixed   int
 }
 
 type Err struct {
@@ -43,10 +41,10 @@ func main() {
 	}
 
 	log.Event(nil, "blocked", log.Data{
-		"blocked":    len(t.blocked),
-		"timeseries": t.timeseries,
-		"datasets":   t.datasets,
-		"previous":   t.previous,
+		"total_found":           t.total,
+		"fixes_applied":         t.fixed,
+		"blocked_by_collection": len(t.blocked),
+		"outstanding":           t.total - t.fixed,
 	})
 }
 
@@ -80,20 +78,23 @@ func findAndReplace(masterDir string, collectionsDir string) (*Tracker, error) {
 		return nil, err
 	}
 
+	fixes := collections.New(collectionsDir, "gsi_email_fixes")
+	if err := collections.Save(fixes); err != nil {
+		return nil, err
+	}
+
 	log.Event(nil, "scanner master dir for uses of target value", log.Data{"target_value": oldEmail})
 
 	t := &Tracker{
-		blocked:    make([]string, 0),
-		fixed:      0,
-		datasets:   0,
-		timeseries: 0,
-		previous:   0,
+		blocked: make([]string, 0),
+		fixed:   0,
+		total:   0,
 	}
-	err = filepath.Walk(masterDir, fileWalker(cols, masterDir, t))
+	err = filepath.Walk(masterDir, fileWalker(cols, masterDir, t, fixes))
 	return t, err
 }
 
-func fileWalker(cols *collections.Collections, masterDir string, t *Tracker) func(path string, info os.FileInfo, err error) error {
+func fileWalker(cols *collections.Collections, masterDir string, t *Tracker, fixes *collections.Collection) func(path string, info os.FileInfo, err error) error {
 	return func(path string, info os.FileInfo, err error) error {
 		if info.IsDir() {
 			return nil
@@ -108,16 +109,14 @@ func fileWalker(cols *collections.Collections, masterDir string, t *Tracker) fun
 			raw := string(b)
 
 			if strings.Contains(raw, oldEmail) {
+
 				if strings.Contains(path, "/previous/") {
-					t.previous++
 					return nil
 				}
-				if strings.Contains(path, "/datasets/") {
-					t.datasets++
-					return nil
-				}
-				if strings.Contains(path, "/timeseries/") {
-					t.timeseries++
+
+				t.total++
+
+				if strings.Contains(path, "/datasets/") || strings.Contains(path, "/timeseries/") {
 					return nil
 				}
 
@@ -132,6 +131,11 @@ func fileWalker(cols *collections.Collections, masterDir string, t *Tracker) fun
 						t.blocked = append(t.blocked, uri)
 						break
 					}
+				}
+
+				raw = strings.Replace(raw, oldEmail, newEmail, -1)
+				if err := fixes.AddContent(uri, []byte(raw)); err != nil {
+					return err
 				}
 				t.fixed++
 			}
