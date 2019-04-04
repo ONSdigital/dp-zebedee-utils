@@ -78,7 +78,7 @@ func findAndReplace(masterDir string, collectionsDir string) (*Tracker, error) {
 		return nil, err
 	}
 
-	fixes := collections.New(collectionsDir, "gsi_email_fixes")
+	fixes := collections.New(collectionsDir, "GSI email fixes")
 	if err := collections.Save(fixes); err != nil {
 		return nil, err
 	}
