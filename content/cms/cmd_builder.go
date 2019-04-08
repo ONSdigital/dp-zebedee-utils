@@ -9,8 +9,10 @@ import (
 	"github.com/satori/go.uuid"
 	"io"
 	"io/ioutil"
+	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 )
 
 const (
@@ -26,6 +28,9 @@ const (
 	LaunchPad         = "launchpad"
 	AppKeys           = "application-keys"
 	defaultContentZip = "default-content.zip"
+
+	datasetAPIAuthTokenEnv = "DATASET_API_AUTH_TOKEN"
+	serviceAuthTokenEnv    = "SERVICE_AUTH_TOKEN"
 )
 
 var (
@@ -34,25 +39,28 @@ var (
 )
 
 type Builder struct {
-	Out            io.Writer
-	OutErr         io.Writer
-	rootDir        string
-	zebedeeDir     string
-	masterDir      string
-	collectionsDir string
-	publishLogDir  string
-	usersDir       string
-	sessionsDir    string
-	servicesDir    string
-	permissionsDir string
-	teamsDir       string
-	launchPadDir   string
-	appKeysDir     string
-	serviceAccount bool
+	Out                 io.Writer
+	OutErr              io.Writer
+	rootDir             string
+	zebedeeDir          string
+	masterDir           string
+	collectionsDir      string
+	publishLogDir       string
+	usersDir            string
+	sessionsDir         string
+	servicesDir         string
+	permissionsDir      string
+	teamsDir            string
+	launchPadDir        string
+	appKeysDir          string
+	isCMD               bool
+	serviceAccountID    string
+	datasetAPIAuthToken string
+	datasetAPIURL       string
 }
 
 // New construct a new cmd.Builder
-func New(root string, createServiceAccount bool) (*Builder, error) {
+func New(root string, isCMD bool) (*Builder, error) {
 	zebedeeDir := filepath.Join(root, Zebedee)
 	exists, err := files.Exists(zebedeeDir)
 	if err != nil {
@@ -63,27 +71,30 @@ func New(root string, createServiceAccount bool) (*Builder, error) {
 		return nil, errors.New("cannot generate directory structure as a zebedee a dir already exists at the root location provided")
 	}
 
-	c := &Builder{
-		rootDir:        root,
-		zebedeeDir:     zebedeeDir,
-		masterDir:      filepath.Join(zebedeeDir, Master),
-		collectionsDir: filepath.Join(zebedeeDir, Collections),
-		publishLogDir:  filepath.Join(zebedeeDir, PublishLog),
-		usersDir:       filepath.Join(zebedeeDir, Users),
-		sessionsDir:    filepath.Join(zebedeeDir, Sessions),
-		servicesDir:    filepath.Join(zebedeeDir, Services),
-		permissionsDir: filepath.Join(zebedeeDir, Permissions),
-		teamsDir:       filepath.Join(zebedeeDir, Teams),
-		launchPadDir:   filepath.Join(zebedeeDir, LaunchPad),
-		appKeysDir:     filepath.Join(zebedeeDir, AppKeys),
-		serviceAccount: createServiceAccount,
+	b := &Builder{
+		rootDir:             root,
+		zebedeeDir:          zebedeeDir,
+		masterDir:           filepath.Join(zebedeeDir, Master),
+		collectionsDir:      filepath.Join(zebedeeDir, Collections),
+		publishLogDir:       filepath.Join(zebedeeDir, PublishLog),
+		usersDir:            filepath.Join(zebedeeDir, Users),
+		sessionsDir:         filepath.Join(zebedeeDir, Sessions),
+		servicesDir:         filepath.Join(zebedeeDir, Services),
+		permissionsDir:      filepath.Join(zebedeeDir, Permissions),
+		teamsDir:            filepath.Join(zebedeeDir, Teams),
+		launchPadDir:        filepath.Join(zebedeeDir, LaunchPad),
+		appKeysDir:          filepath.Join(zebedeeDir, AppKeys),
+		isCMD:               isCMD,
+		datasetAPIURL:       "",
+		datasetAPIAuthToken: "",
+		serviceAccountID:    "",
 	}
-	return c, nil
+	return b, nil
 }
 
 // Build creates the Zebedee CMS directory structure
 func (b *Builder) Build() error {
-	log.Info.Printf("args: root=%s, cmd=%t\n", b.zebedeeDir, b.serviceAccount)
+	log.Info.Printf("args: root=%s, cmd=%t\n", b.zebedeeDir, b.isCMD)
 	if err := b.createDirs(); err != nil {
 		return err
 	}
@@ -103,13 +114,28 @@ func (b *Builder) Build() error {
 		return err
 	}
 
-	if b.serviceAccount {
-		err := b.createServiceAccount()
+	if b.isCMD {
+		err = b.createServiceAccount()
 		if err != nil {
 			return err
 		}
+
+		b.setDatasetAPIAuthToken()
+
+		b.datasetAPIURL = "http://localhost:22000"
 	}
+
 	return nil
+}
+
+func (b *Builder) GetRunScriptArgs() map[string]interface{} {
+	args := make(map[string]interface{})
+	args["ZEBEDEE_ROOT"] = b.rootDir
+	args["ENABLE_DATASET_IMPORT"] = strconv.FormatBool(b.isCMD)
+	args["DATASET_API_URL"] = b.datasetAPIURL
+	args["DATASET_API_AUTH_TOKEN"] = b.datasetAPIAuthToken
+	args["SERVICE_AUTH_TOKEN"] = b.serviceAccountID
+	return args
 }
 
 func (b *Builder) createDirs() error {
@@ -160,24 +186,57 @@ func (b *Builder) removeContentZipFromMaster() error {
 }
 
 func (b *Builder) createServiceAccount() error {
-	id, err := uuid.NewV4()
-	if err != nil {
-		return errors.Wrap(err, "error generating UUID")
+	if !b.isCMD {
+		log.Info.Printf("skipping create service account step")
+		return nil
 	}
 
-	log.Info.Printf("generating CMD service account: ID: %s\n", id.String())
+	serviceAuthToken, err := getServiceTokenID()
+	if err != nil {
+		return err
+	}
+
+	b.serviceAccountID = serviceAuthToken
+	log.Info.Printf("generating CMD service account: ID: %s\n", b.serviceAccountID)
 
 	jsonB, err := json.Marshal(map[string]interface{}{"id": "Wayne Enterprises"})
 	if err != nil {
 		return errors.Wrap(err, "error marshaling service account JSON")
 	}
 
-	filename := filepath.Join(b.servicesDir, id.String()+".json")
+	filename := filepath.Join(b.servicesDir, b.serviceAccountID+".json")
 	err = ioutil.WriteFile(filename, jsonB, 0644)
 	if err != nil {
 		return errors.Wrap(err, "error writing service account JSON to file")
 	}
+
+	log.Info.Printf("successfully generated service account")
 	return nil
+}
+
+func getServiceTokenID() (string, error) {
+	if serviceAuthToken := os.Getenv(serviceAuthTokenEnv); serviceAuthToken != "" {
+		log.Info.Printf("found existing environment variable for %q using this id for generated service account", serviceAuthTokenEnv)
+		return serviceAuthToken, nil
+	}
+
+	log.Info.Printf("no existing environment variable %q found, generating new ID for generated service account", serviceAuthTokenEnv)
+	id, err := uuid.NewV4()
+	if err != nil {
+		return "", errors.Wrap(err, "error generating UUID for service account")
+	}
+
+	return id.String(), nil
+}
+
+func (b *Builder) setDatasetAPIAuthToken() {
+	if datasetAPIAuthToken := os.Getenv(datasetAPIAuthTokenEnv); datasetAPIAuthToken != "" {
+		log.Info.Printf("found existing environment variable for %q using this token value for generated run script", datasetAPIAuthTokenEnv)
+		b.datasetAPIAuthToken = datasetAPIAuthToken
+	} else {
+		log.Info.Printf("no existing environment variable %q found generating new token for generated run script", datasetAPIAuthTokenEnv)
+		b.datasetAPIAuthToken = "FD0108EA-825D-411C-9B1D-41EF7727F465"
+	}
 }
 
 func (b *Builder) dirs() []string {
@@ -194,7 +253,7 @@ func (b *Builder) dirs() []string {
 		b.appKeysDir,
 	}
 
-	if b.serviceAccount {
+	if b.isCMD {
 		dirs = append(dirs, b.servicesDir)
 	}
 

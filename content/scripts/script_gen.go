@@ -2,6 +2,7 @@ package scripts
 
 import (
 	"bytes"
+	"github.com/ONSdigital/dp-zebedee-utils/content/cms"
 	"github.com/ONSdigital/dp-zebedee-utils/content/files"
 	"github.com/ONSdigital/dp-zebedee-utils/content/log"
 	"github.com/pkg/errors"
@@ -16,7 +17,7 @@ var (
 	cmsRunFile   = output + "/run-cms.sh"
 )
 
-func GenerateCMSRunScript(rootDir string) (string, error) {
+func GenerateCMSRunScript(builder *cms.Builder) (string, error) {
 	if err := houseKeeping(); err != nil {
 		return "", err
 	}
@@ -27,7 +28,7 @@ func GenerateCMSRunScript(rootDir string) (string, error) {
 	}
 
 	var buf bytes.Buffer
-	err = tmpl.Execute(&buf, map[string]interface{}{"ZebedeeRoot": rootDir})
+	err = tmpl.Execute(&buf, builder.GetRunScriptArgs())
 	if err != nil {
 		log.Error.Fatal(err)
 		os.Exit(1)

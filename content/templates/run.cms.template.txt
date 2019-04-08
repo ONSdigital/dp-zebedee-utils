@@ -5,7 +5,7 @@
 ###################################
 
 # Sets the root Zebedee directory required to run Zebedee in publishing / CMS mode.
-export zebedee_root={{.ZebedeeRoot}}
+export zebedee_root={{.ZEBEDEE_ROOT}}
 
 # Zebedee runs by default on port :8082
 export PORT="${PORT:-8082}"
@@ -26,15 +26,21 @@ export audit_db_enabled=false
 # File contains connection parameters for the audit and collection history database. Can be ignored if audit_db_enabled=false
 source ./export-default-env-vars.sh
 
-# The dp-logging lib allows logs to be output in different formats. The available options are:
-# pretty_json - Formatted json
-# json        - Non formatted json
-# text        - Standard log output.
-export DP_LOGGING_FORMAT=pretty_json
+##
+# CMD config (dev local values)
+##
 
-# dp-logging can be configured to output messages with colour highlighting - makes logs a bit easier to read on local
-# dev set up. To disable: DP_COLOURED_LOGGING=false
-export DP_COLOURED_LOGGING=true
+# Enable the CMD feature
+export ENABLE_DATASET_IMPORT={{.ENABLE_DATASET_IMPORT}}
+
+# The CMD dataset API URL
+export DATASET_API_URL={{.DATASET_API_URL}}
+
+# The Dataset API auth token
+export DATASET_API_AUTH_TOKEN={{.DATASET_API_AUTH_TOKEN}}
+
+# The Zebedee service auth token
+export SERVICE_AUTH_TOKEN={{.SERVICE_AUTH_TOKEN}}
 
 # Development: reloadable
 mvn clean package dependency:copy-dependencies -Dmaven.test.skip=true && \

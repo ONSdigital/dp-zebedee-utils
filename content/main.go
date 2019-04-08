@@ -34,7 +34,7 @@ func main() {
 	log.Info.Println("successfully generated zebedee file system")
 
 	var file string
-	file, err = scripts.GenerateCMSRunScript(*root)
+	file, err = scripts.GenerateCMSRunScript(builder)
 	if err != nil {
 		errorAndExit(err)
 	}
