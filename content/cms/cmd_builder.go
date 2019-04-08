@@ -31,6 +31,7 @@ const (
 
 	datasetAPIAuthTokenEnv = "DATASET_API_AUTH_TOKEN"
 	serviceAuthTokenEnv    = "SERVICE_AUTH_TOKEN"
+	datasetAPIURLEnv       = "DATASET_API_URL"
 )
 
 var (
@@ -123,6 +124,8 @@ func (b *Builder) Build() error {
 		b.setDatasetAPIAuthToken()
 
 		b.datasetAPIURL = "http://localhost:22000"
+
+		log.Info.Printf("Your CMD config:\n\t%q: %s\n\t%q: %s\n\t%q%s", serviceAuthTokenEnv, b.serviceAccountID, datasetAPIAuthTokenEnv, b.datasetAPIAuthToken, datasetAPIURLEnv, b.datasetAPIURL)
 	}
 
 	return nil
@@ -210,7 +213,7 @@ func (b *Builder) createServiceAccount() error {
 		return errors.Wrap(err, "error writing service account JSON to file")
 	}
 
-	log.Info.Printf("successfully generated service account")
+	log.Info.Printf("successfully generated service account make")
 	return nil
 }
 
@@ -236,6 +239,16 @@ func (b *Builder) setDatasetAPIAuthToken() {
 	} else {
 		log.Info.Printf("no existing environment variable %q found generating new token for generated run script", datasetAPIAuthTokenEnv)
 		b.datasetAPIAuthToken = "FD0108EA-825D-411C-9B1D-41EF7727F465"
+	}
+}
+
+func (b *Builder) setDatasetAPIURL() {
+	if datasetAPIURL := os.Getenv(datasetAPIURLEnv); datasetAPIURL != "" {
+		log.Info.Printf("found existing environment variable for %q using this value for generated run script", datasetAPIURLEnv)
+		b.datasetAPIURL = datasetAPIURL
+	} else {
+		log.Info.Printf("no existing environment variable %q found generating new for generated run script", datasetAPIURLEnv)
+		b.datasetAPIURL = "http://localhost:22000"
 	}
 }
 

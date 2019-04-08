@@ -134,7 +134,7 @@ func fileWalker(cols *collections.Collections, masterDir string, t *Tracker, fix
 				}
 
 				raw = strings.Replace(raw, oldEmail, newEmail, -1)
-				if err := fixes.AddReviewedContent(uri, []byte(raw)); err != nil {
+				if err := fixes.AddContent(uri, []byte(raw)); err != nil {
 					return err
 				}
 				t.fixed++
