@@ -2,12 +2,15 @@ package scripts
 
 import (
 	"bytes"
-	"github.com/ONSdigital/dp-zebedee-utils/content/files"
-	"github.com/ONSdigital/dp-zebedee-utils/content/log"
-	"github.com/pkg/errors"
 	"io/ioutil"
 	"os"
+	"path"
 	"text/template"
+
+	"github.com/ONSdigital/dp-zebedee-utils/content/cms"
+	"github.com/ONSdigital/dp-zebedee-utils/content/files"
+	"github.com/ONSdigital/log.go/log"
+	"github.com/pkg/errors"
 )
 
 var (
@@ -16,7 +19,7 @@ var (
 	cmsRunFile   = output + "/run-cms.sh"
 )
 
-func GenerateCMSRunScript(rootDir string) (string, error) {
+func GenerateCMSRunScript(t *cms.RunTemplate) (string, error) {
 	if err := houseKeeping(); err != nil {
 		return "", err
 	}
@@ -27,9 +30,9 @@ func GenerateCMSRunScript(rootDir string) (string, error) {
 	}
 
 	var buf bytes.Buffer
-	err = tmpl.Execute(&buf, map[string]interface{}{"ZebedeeRoot": rootDir})
+	err = tmpl.Execute(&buf, t)
 	if err != nil {
-		log.Error.Fatal(err)
+		log.Event(nil, "error generating run.sh from template", log.Error(err))
 		os.Exit(1)
 	}
 
@@ -58,11 +61,25 @@ func houseKeeping() error {
 	}
 
 	if exists {
-		log.Info.Println("removing existing run-cms.sh file")
+		log.Event(nil, "removing existing run-cms.sh file")
 		if err := os.Remove(cmsRunFile); err != nil {
 			return err
 		}
 	}
 
 	return nil
+}
+
+func CopyToProjectDir(zebDir string, generatedFile string) (string, error) {
+	target := path.Join(zebDir, "run-cms.sh")
+	log.Event(nil, "copying run-cms.sh to zebedee project dir", log.Data{"target": target})
+	b, err := ioutil.ReadFile(generatedFile)
+	if err != nil {
+		return "", err
+	}
+
+	if err := ioutil.WriteFile(target, b, 0700); err != nil {
+		return "", err
+	}
+	return target, nil
 }
