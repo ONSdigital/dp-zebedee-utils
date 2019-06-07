@@ -5,6 +5,7 @@ import (
 	"github.com/ONSdigital/dp-zebedee-utils/collections"
 	"github.com/ONSdigital/log.go/log"
 	"github.com/pkg/errors"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -78,8 +79,7 @@ func findAndReplace(masterDir string, collectionsDir string) (*Tracker, error) {
 		return nil, err
 	}
 
-	fixes := collections.New(collectionsDir, "GSIEmailFixes")
-	fixes.ApprovalStatus = collections.CompleteState
+	fixes := collections.New(collectionsDir, "gsiemailfixes")
 	if err := collections.Save(fixes); err != nil {
 		return nil, err
 	}
@@ -101,6 +101,8 @@ func fileWalker(cols *collections.Collections, masterDir string, t *Tracker, fix
 			return nil
 		}
 
+		logD := log.Data{"uri": path}
+
 		if ext := filepath.Ext(info.Name()); ext == ".json" {
 
 			b, err := ioutil.ReadFile(path)
@@ -112,12 +114,14 @@ func fileWalker(cols *collections.Collections, masterDir string, t *Tracker, fix
 			if strings.Contains(raw, oldEmail) {
 
 				if strings.Contains(path, "/previous/") {
+					log.Event(nil, "skipping previous version", logD)
 					return nil
 				}
 
 				t.total++
 
 				if strings.Contains(path, "/datasets/") || strings.Contains(path, "/timeseries/") {
+					log.Event(nil, fmt.Sprintf("skipping %q/%q uri", "/datasets", "/timeseries/"), logD)
 					return nil
 				}
 
@@ -135,6 +139,7 @@ func fileWalker(cols *collections.Collections, masterDir string, t *Tracker, fix
 				}
 
 				raw = strings.Replace(raw, oldEmail, newEmail, -1)
+				log.Event(nil, "applying content fix", logD)
 				if err := fixes.AddToReviewed(uri, []byte(raw)); err != nil {
 					return err
 				}
