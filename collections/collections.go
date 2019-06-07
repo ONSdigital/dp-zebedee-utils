@@ -2,14 +2,24 @@ package collections
 
 import (
 	"fmt"
-	"github.com/ONSdigital/dp-zebedee-utils/errs"
-	"github.com/ONSdigital/log.go/log"
-	"github.com/satori/go.uuid"
 	"io/ioutil"
 	"path"
 	"path/filepath"
 	"strings"
+
+	"github.com/ONSdigital/dp-zebedee-utils/errs"
+	"github.com/ONSdigital/log.go/log"
+	"github.com/satori/go.uuid"
 )
+
+const (
+	NotStartState   ApprovalStatus = "NOT_STARTED"
+	InProgressState ApprovalStatus = "IN_PROGRESS"
+	CompleteState   ApprovalStatus = "COMPLETE"
+	ErrorState      ApprovalStatus = "ERROR"
+)
+
+type ApprovalStatus string
 
 type Metadata struct {
 	Name           string
@@ -21,16 +31,16 @@ type Metadata struct {
 }
 
 type Collection struct {
-	Metadata              *Metadata     `json:"-"`
-	ApprovalStatus        string        `json:"approvalStatus"`
-	PublishComplete       bool          `json:"publishComplete"`
-	IsEncrypted           bool          `json:"isEncrypted"`
-	CollectionOwner       string        `json:"collectionOwner"`
-	TimeSeriesImportFiles []string      `json:"timeseriesImportFiles"`
-	ID                    string        `json:"id"`
-	Name                  string        `json:"name"`
-	Type                  string        `json:"type"`
-	Teams                 []interface{} `json:"teams"`
+	Metadata              *Metadata      `json:"-"`
+	ApprovalStatus        ApprovalStatus `json:"approvalStatus"`
+	PublishComplete       bool           `json:"publishComplete"`
+	IsEncrypted           bool           `json:"isEncrypted"`
+	CollectionOwner       string         `json:"collectionOwner"`
+	TimeSeriesImportFiles []string       `json:"timeseriesImportFiles"`
+	ID                    string         `json:"id"`
+	Name                  string         `json:"name"`
+	Type                  string         `json:"type"`
+	Teams                 []interface{}  `json:"teams"`
 }
 
 type Collections struct {
@@ -58,16 +68,16 @@ func New(rootPath string, name string) *Collection {
 	metadata := NewMetadata(rootPath, name)
 
 	return &Collection{
-		Metadata:        metadata,
-		ApprovalStatus:  "NOT_STARTED",
-		CollectionOwner: "PUBLISHING_SUPPORT",
-		IsEncrypted:     false,
-		PublishComplete: false,
-		Type:            "manual",
-		ID:              id,
-		Name:            name,
+		Metadata:              metadata,
+		ApprovalStatus:        NotStartState,
+		CollectionOwner:       "PUBLISHING_SUPPORT",
+		IsEncrypted:           false,
+		PublishComplete:       false,
+		Type:                  "manual",
+		ID:                    id,
+		Name:                  name,
 		TimeSeriesImportFiles: []string{},
-		Teams: []interface{}{},
+		Teams:                 []interface{}{},
 	}
 }
 
@@ -139,6 +149,11 @@ func (c *Collection) AddContent(uri string, fileBytes []byte) error {
 	return writeContent(collectionURI, fileBytes)
 }
 
+func (c *Collection) AddToReviewed(uri string, fileBytes []byte) error {
+	collectionURI := c.reviewedURI(uri)
+	return writeContent(collectionURI, fileBytes)
+}
+
 func (c *Collection) MoveContent(absoluteSrcPath string, relSrcPath string, relDestUri string) error {
 	absoluteDest := c.inProgressURI(relDestUri)
 
@@ -167,6 +182,10 @@ func FixBrokenLinks(fileBytes []byte, old string, new string) []byte {
 
 func (c *Collection) inProgressURI(taxonomyURI string) string {
 	return path.Join(c.Metadata.InProgress, taxonomyURI)
+}
+
+func (c *Collection) reviewedURI(taxonomyURI string) string {
+	return path.Join(c.Metadata.Reviewed, taxonomyURI)
 }
 
 func (c *Collection) getDirs() []string {

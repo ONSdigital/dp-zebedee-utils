@@ -79,11 +79,12 @@ func findAndReplace(masterDir string, collectionsDir string) (*Tracker, error) {
 	}
 
 	fixes := collections.New(collectionsDir, "GSIEmailFixes")
+	fixes.ApprovalStatus = collections.CompleteState
 	if err := collections.Save(fixes); err != nil {
 		return nil, err
 	}
 
-	log.Event(nil, "scanner master dir for uses of target value", log.Data{"target_value": oldEmail})
+	log.Event(nil, "scanning master dir for uses of target value", log.Data{"target_value": oldEmail})
 
 	t := &Tracker{
 		blocked: make([]string, 0),
@@ -134,7 +135,7 @@ func fileWalker(cols *collections.Collections, masterDir string, t *Tracker, fix
 				}
 
 				raw = strings.Replace(raw, oldEmail, newEmail, -1)
-				if err := fixes.AddContent(uri, []byte(raw)); err != nil {
+				if err := fixes.AddToReviewed(uri, []byte(raw)); err != nil {
 					return err
 				}
 				t.fixed++
