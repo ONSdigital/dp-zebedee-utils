@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/ONSdigital/log.go/log"
 )
@@ -34,6 +35,8 @@ func main() {
 
 	t := &Tracker{Datasets: 0, Previous: 0, Timeseries: 0, Content: 0}
 
+	lastTick := time.Now()
+
 	err := filepath.Walk(*masterDir, func(path string, info os.FileInfo, err error) error {
 		if info.IsDir() {
 			return nil
@@ -45,7 +48,11 @@ func main() {
 				return err
 			}
 			raw := string(b)
-			fmt.Print(".")
+
+			if time.Since(lastTick) >= time.Second*1 {
+				fmt.Print(".")
+				lastTick = time.Now()
+			}
 
 			if strings.Contains(raw, oldEmail) {
 				if strings.Contains(path, "/previous/") {
