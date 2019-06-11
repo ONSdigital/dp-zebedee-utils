@@ -2,14 +2,15 @@ package main
 
 import (
 	"flag"
+	"io/ioutil"
+	"os"
+	"path"
+	"path/filepath"
+	"strings"
+
 	"github.com/ONSdigital/dp-zebedee-utils/collections"
 	"github.com/ONSdigital/log.go/log"
 	"github.com/pkg/errors"
-	"fmt"
-	"io/ioutil"
-	"os"
-	"path/filepath"
-	"strings"
 )
 
 const (
@@ -21,15 +22,6 @@ type Tracker struct {
 	total   int
 	blocked []string
 	fixed   int
-}
-
-type Err struct {
-	Data log.Data
-	Err  error
-}
-
-func (e Err) Error() string {
-	return e.Err.Error()
 }
 
 func main() {
@@ -45,32 +37,31 @@ func main() {
 		"total_found":           t.total,
 		"fixes_applied":         t.fixed,
 		"blocked_by_collection": len(t.blocked),
+		"blocked_uris":          t.blocked,
 		"outstanding":           t.total - t.fixed,
 	})
 }
 
 func getConfig() (string, string) {
-	master := flag.String("master", "", "the zebedee master dir")
-	collectionsDir := flag.String("collections", "", "the zebedee collections dir")
+	zebedeeDir := flag.String("zeb", "", "the zebedee base dir")
 	flag.Parse()
 
-	if *master == "" {
-		errExit(errors.New("master dir not specified"))
+	if *zebedeeDir == "" {
+		errExit(errors.New("zebedee dir not specified"))
 	}
 
-	if !Exists(*master) {
-		errExit(Err{Err: errors.New("master dir does not exist"), Data: log.Data{"master": *master}})
+	masterDir := path.Join(*zebedeeDir, "master")
+	collectionsDir := path.Join(*zebedeeDir, "collections")
+
+	if !Exists(masterDir) {
+		errExit(errors.New("master dir does not exist"))
 	}
 
-	if *collectionsDir == "" {
-		errExit(errors.New("collections dir not specified"))
+	if !Exists(collectionsDir) {
+		errExit(errors.New("collections dir does not exist"))
 	}
 
-	if !Exists(*collectionsDir) {
-		errExit(Err{Err: errors.New("collections dir does not exist"), Data: log.Data{"collectionsDir": *collectionsDir}})
-	}
-
-	return *master, *collectionsDir
+	return masterDir, collectionsDir
 }
 
 func findAndReplace(masterDir string, collectionsDir string) (*Tracker, error) {
@@ -91,59 +82,52 @@ func findAndReplace(masterDir string, collectionsDir string) (*Tracker, error) {
 		fixed:   0,
 		total:   0,
 	}
+
 	err = filepath.Walk(masterDir, fileWalker(cols, masterDir, t, fixes))
 	return t, err
 }
 
-func fileWalker(cols *collections.Collections, masterDir string, t *Tracker, fixes *collections.Collection) func(path string, info os.FileInfo, err error) error {
+func fileWalker(collectionsList *collections.Collections, masterDir string, tracker *Tracker, fixCollection *collections.Collection) filepath.WalkFunc {
 	return func(path string, info os.FileInfo, err error) error {
 		if info.IsDir() {
 			return nil
 		}
 
-		logD := log.Data{"uri": path}
-
 		if ext := filepath.Ext(info.Name()); ext == ".json" {
+			uri, err := filepath.Rel(masterDir, path)
+			uri = "/" + uri
+			logD := log.Data{"uri": uri}
 
 			b, err := ioutil.ReadFile(path)
 			if err != nil {
 				return err
 			}
-			raw := string(b)
+			contentJson := string(b)
 
-			if strings.Contains(raw, oldEmail) {
+			if strings.Contains(contentJson, oldEmail) {
 
 				if strings.Contains(path, "/previous/") {
-					log.Event(nil, "skipping previous version", logD)
+					log.Event(nil, "skipping previous version content", logD)
 					return nil
 				}
 
-				t.total++
+				tracker.total++
 
-				if strings.Contains(path, "/datasets/") || strings.Contains(path, "/timeseries/") {
-					log.Event(nil, fmt.Sprintf("skipping %q/%q uri", "/datasets", "/timeseries/"), logD)
-					return nil
-				}
-
-				uri, err := filepath.Rel(masterDir, path)
-				if err != nil {
-					return err
-				}
-
-				uri = "/" + uri
-				for _, c := range cols.Collections {
-					if c.Contains(uri) {
-						t.blocked = append(t.blocked, uri)
-						break
+				for _, c := range collectionsList.Collections {
+					if blocked := c.Contains(uri); blocked {
+						logD["collection"] = c.Name
+						log.Event(nil, "cannot fix content as it is contained in another collection", logD)
+						tracker.blocked = append(tracker.blocked, uri)
+						return nil
 					}
 				}
 
-				raw = strings.Replace(raw, oldEmail, newEmail, -1)
+				contentJson = strings.Replace(contentJson, oldEmail, newEmail, -1)
 				log.Event(nil, "applying content fix", logD)
-				if err := fixes.AddToReviewed(uri, []byte(raw)); err != nil {
+				if err := fixCollection.AddToReviewed(uri, []byte(contentJson)); err != nil {
 					return err
 				}
-				t.fixed++
+				tracker.fixed++
 			}
 		}
 		return nil
@@ -162,11 +146,6 @@ func Exists(filePath string) bool {
 }
 
 func errExit(err error) {
-	appErr, ok := err.(Err)
-	if ok {
-		log.Event(nil, "app error", log.Error(appErr.Err), appErr.Data)
-	} else {
-		log.Event(nil, "app error", log.Error(err))
-	}
+	log.Event(nil, "app error", log.Error(err))
 	os.Exit(1)
 }
