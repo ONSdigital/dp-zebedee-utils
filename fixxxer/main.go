@@ -25,7 +25,7 @@ type Tracker struct {
 }
 
 func main() {
-	log.Namespace = "fi-xxx-er"
+	log.Namespace = "gsi-email-fix"
 	master, collectionsDir := getConfig()
 
 	t, err := findAndReplace(master, collectionsDir)
