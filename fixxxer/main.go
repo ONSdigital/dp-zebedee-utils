@@ -8,6 +8,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/ONSdigital/dp-zebedee-utils/collections"
 	"github.com/ONSdigital/log.go/log"
@@ -19,6 +20,8 @@ const (
 	newEmail = "@ons.gov.uk"
 )
 
+var currentDir = ""
+
 type Tracker struct {
 	total   int
 	blocked []string
@@ -29,6 +32,7 @@ func main() {
 	log.Namespace = "gsi-email-fix"
 	master, collectionsDir := getConfig()
 
+	start := time.Now()
 	t, err := findAndReplace(master, collectionsDir)
 	if err != nil {
 		errExit(err)
@@ -40,6 +44,7 @@ func main() {
 		"blocked_by_collection": len(t.blocked),
 		"blocked_uris":          t.blocked,
 		"outstanding":           t.total - t.fixed,
+		"time":                  time.Now().Sub(start).Seconds(),
 	})
 }
 
@@ -90,16 +95,15 @@ func findAndReplace(masterDir string, collectionsDir string) (*Tracker, error) {
 
 func fileWalker(collectionsList *collections.Collections, masterDir string, tracker *Tracker, fixCollection *collections.Collection) filepath.WalkFunc {
 	return func(path string, info os.FileInfo, err error) error {
-		uri, err := filepath.Rel(masterDir, path)
-		uri = "/" + uri
-		logD := log.Data{"uri": uri}
-
 		if info.IsDir() {
-			log.Event(nil, "searching dir for fixes", logD)
 			return nil
 		}
 
 		if ext := filepath.Ext(info.Name()); ext == ".json" {
+			uri, err := filepath.Rel(masterDir, path)
+			uri = "/" + uri
+			logD := log.Data{"uri": uri}
+
 			b, err := ioutil.ReadFile(path)
 			if err != nil {
 				return err
@@ -124,7 +128,7 @@ func fileWalker(collectionsList *collections.Collections, masterDir string, trac
 				}
 
 				contentJson = strings.Replace(contentJson, oldEmail, newEmail, -1)
-				//log.Event(nil, "applying content fix", logD)
+				log.Event(nil, "applying content fix", logD)
 				if err := fixCollection.AddToReviewed(uri, []byte(contentJson)); err != nil {
 					return err
 				}
