@@ -23,6 +23,7 @@ func main() {
 		errExit(errors.New("master dir does not exist"))
 	}
 
+	totalCount := 0
 	pdfs := 0
 
 	err := filepath.Walk(*targetDir, func(path string, info os.FileInfo, err error) error {
@@ -33,6 +34,8 @@ func main() {
 		if ext := filepath.Ext(info.Name()); ext != ".json" {
 			return nil
 		}
+
+		totalCount += 1
 
 		b, err := ioutil.ReadFile(path)
 		if err != nil {
@@ -55,7 +58,7 @@ func main() {
 		errExit(err)
 	}
 
-	log.Event(nil, "pdf generating pages", log.Data{"count": pdfs})
+	log.Event(nil, "pdf generating pages", log.Data{"pdf_count": pdfs, "totalCount": totalCount})
 }
 
 func Exists(filePath string) bool {
