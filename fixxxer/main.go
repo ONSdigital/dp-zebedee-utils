@@ -107,7 +107,6 @@ func fileWalker(collectionsList *collections.Collections, masterDir string, trac
 			if strings.Contains(contentJson, oldEmail) {
 
 				if strings.Contains(path, "/previous/") {
-					log.Event(nil, "skipping previous version content", logD)
 					return nil
 				}
 
