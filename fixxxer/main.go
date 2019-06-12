@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
@@ -89,15 +90,16 @@ func findAndReplace(masterDir string, collectionsDir string) (*Tracker, error) {
 
 func fileWalker(collectionsList *collections.Collections, masterDir string, tracker *Tracker, fixCollection *collections.Collection) filepath.WalkFunc {
 	return func(path string, info os.FileInfo, err error) error {
+		uri, err := filepath.Rel(masterDir, path)
+		uri = "/" + uri
+		logD := log.Data{"uri": uri}
+
 		if info.IsDir() {
+			log.Event(nil, "searching dir for fixes", logD)
 			return nil
 		}
 
 		if ext := filepath.Ext(info.Name()); ext == ".json" {
-			uri, err := filepath.Rel(masterDir, path)
-			uri = "/" + uri
-			logD := log.Data{"uri": uri}
-
 			b, err := ioutil.ReadFile(path)
 			if err != nil {
 				return err
@@ -116,13 +118,13 @@ func fileWalker(collectionsList *collections.Collections, masterDir string, trac
 					if blocked := c.Contains(uri); blocked {
 						logD["collection"] = c.Name
 						log.Event(nil, "cannot fix content as it is contained in another collection", logD)
-						tracker.blocked = append(tracker.blocked, uri)
+						tracker.blocked = append(tracker.blocked, fmt.Sprintf("%s:%s", c.Name, uri))
 						return nil
 					}
 				}
 
 				contentJson = strings.Replace(contentJson, oldEmail, newEmail, -1)
-				log.Event(nil, "applying content fix", logD)
+				//log.Event(nil, "applying content fix", logD)
 				if err := fixCollection.AddToReviewed(uri, []byte(contentJson)); err != nil {
 					return err
 				}
