@@ -1,70 +1,52 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"flag"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strings"
-	"time"
 
 	"github.com/ONSdigital/log.go/log"
 )
 
-const (
-	oldEmail = "@ons.gsi.gov.uk"
-	jsonExt  = ".json"
-)
-
-type Tracker struct {
-	Datasets   int `json:"datasets"`
-	Previous   int `json:"previous"`
-	Timeseries int `json:"timeseries"`
-	Content    int `json:"contents"`
+type Page struct {
+	PageType string `json:"type"`
 }
 
 func main() {
-	masterDir := flag.String("master", "", "the zebedee master dir")
+	targetDir := flag.String("dir", "", "the zebedee master dir")
 	flag.Parse()
 
-	if !Exists(*masterDir) {
+	if !Exists(*targetDir) {
 		errExit(errors.New("master dir does not exist"))
 	}
 
-	t := &Tracker{Datasets: 0, Previous: 0, Timeseries: 0, Content: 0}
+	pdfs := 0
 
-	lastTick := time.Now()
-
-	err := filepath.Walk(*masterDir, func(path string, info os.FileInfo, err error) error {
+	err := filepath.Walk(*targetDir, func(path string, info os.FileInfo, err error) error {
 		if info.IsDir() {
 			return nil
 		}
 
-		if ext := filepath.Ext(info.Name()); ext == jsonExt {
-			b, err := ioutil.ReadFile(path)
-			if err != nil {
-				return err
-			}
-			raw := string(b)
+		if ext := filepath.Ext(info.Name()); ext != ".json" {
+			return nil
+		}
 
-			if time.Since(lastTick) >= time.Second*1 {
-				fmt.Print(".")
-				lastTick = time.Now()
-			}
+		b, err := ioutil.ReadFile(path)
+		if err != nil {
+			return err
+		}
 
-			if strings.Contains(raw, oldEmail) {
-				if strings.Contains(path, "/previous/") {
-					t.Previous += 1
-				} else if strings.Contains(path, "/datasets/") {
-					t.Datasets += 1
-				} else if strings.Contains(path, "/timeseries/") {
-					t.Timeseries += 1
-				} else {
-					t.Content += 1
-				}
-			}
+		var pt Page
+		if err := json.Unmarshal(b, &pt); err != nil {
+			return err
+		}
+
+		switch pt.PageType {
+		case "article", "bulletin", "compendium_landing_page", "compendium_chapter", "static_methodology":
+			pdfs += 1
 		}
 		return nil
 	})
@@ -73,7 +55,7 @@ func main() {
 		errExit(err)
 	}
 
-	log.Event(nil, "gsi scan completed", log.Data{"breakdown": t})
+	log.Event(nil, "pdf generating pages", log.Data{"count": pdfs})
 }
 
 func Exists(filePath string) bool {
