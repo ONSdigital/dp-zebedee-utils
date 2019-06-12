@@ -99,41 +99,45 @@ func fileWalker(collectionsList *collections.Collections, masterDir string, trac
 			return nil
 		}
 
+		uri, err := filepath.Rel(masterDir, path)
+		uri = "/" + uri
+		logD := log.Data{"uri": uri}
+
 		if ext := filepath.Ext(info.Name()); ext == ".json" {
-			uri, err := filepath.Rel(masterDir, path)
-			uri = "/" + uri
-			logD := log.Data{"uri": uri}
-
-			b, err := ioutil.ReadFile(path)
-			if err != nil {
-				return err
-			}
-			contentJson := string(b)
-
-			if strings.Contains(contentJson, oldEmail) {
-
-				if strings.Contains(path, "/previous/") {
-					return nil
-				}
-
-				tracker.total++
-
-				for _, c := range collectionsList.Collections {
-					if blocked := c.Contains(uri); blocked {
-						logD["collection"] = c.Name
-						log.Event(nil, "cannot fix content as it is contained in another collection", logD)
-						tracker.blocked = append(tracker.blocked, fmt.Sprintf("%s:%s", c.Name, uri))
-						return nil
-					}
-				}
-
-				contentJson = strings.Replace(contentJson, oldEmail, newEmail, -1)
-				log.Event(nil, "applying content fix", logD)
-				if err := fixCollection.AddToReviewed(uri, []byte(contentJson)); err != nil {
+			if info.Name() == "data.json" || info.Name() == "data_cy.json" {
+				b, err := ioutil.ReadFile(path)
+				if err != nil {
 					return err
 				}
-				tracker.fixed++
+				contentJson := string(b)
+
+				if strings.Contains(contentJson, oldEmail) {
+
+					if strings.Contains(path, "/previous/") {
+						return nil
+					}
+
+					tracker.total++
+
+					for _, c := range collectionsList.Collections {
+						if blocked := c.Contains(uri); blocked {
+							logD["collection"] = c.Name
+							log.Event(nil, "cannot fix content as it is contained in another collection", logD)
+							tracker.blocked = append(tracker.blocked, fmt.Sprintf("%s:%s", c.Name, uri))
+							return nil
+						}
+					}
+
+					contentJson = strings.Replace(contentJson, oldEmail, newEmail, -1)
+					log.Event(nil, "applying content fix", logD)
+					if err := fixCollection.AddToReviewed(uri, []byte(contentJson)); err != nil {
+						return err
+					}
+					tracker.fixed++
+				}
+				return nil
 			}
+			log.Event(nil, "skipping non data.json/data_cy.json json file", logD)
 		}
 		return nil
 	}
