@@ -4,9 +4,12 @@ import (
 	"encoding/json"
 	"errors"
 	"flag"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
+	"time"
 
 	"github.com/ONSdigital/log.go/log"
 )
@@ -23,10 +26,23 @@ func main() {
 		errExit(errors.New("master dir does not exist"))
 	}
 
-	totalCount := 0
-	pdfs := 0
+	totalFiles := 0
+	tick := time.Now()
+
+	pdfPages := map[string]int{
+		"article":                 0,
+		"bulletin":                0,
+		"compendium_landing_page": 0,
+		"compendium_chapter":      0,
+		"static_methodology":      0,
+	}
 
 	err := filepath.Walk(*targetDir, func(path string, info os.FileInfo, err error) error {
+		if time.Since(tick) >= time.Second*2 {
+			fmt.Print(".")
+			tick = time.Now()
+		}
+
 		if info.IsDir() {
 			return nil
 		}
@@ -35,21 +51,28 @@ func main() {
 			return nil
 		}
 
-		totalCount += 1
+		if info.Name() == "data.json" || info.Name() != "data_cy.json" {
+			b, err := ioutil.ReadFile(path)
+			if err != nil {
+				return err
+			}
 
-		b, err := ioutil.ReadFile(path)
-		if err != nil {
-			return err
-		}
+			jsonStr := string(b)
 
-		var pt Page
-		if err := json.Unmarshal(b, &pt); err != nil {
-			return err
-		}
+			if !strings.Contains(jsonStr, "@ons.gsi.gov.uk") {
+				return nil
+			}
 
-		switch pt.PageType {
-		case "article", "bulletin", "compendium_landing_page", "compendium_chapter", "static_methodology":
-			pdfs += 1
+			totalFiles += 1
+
+			var pt Page
+			if err := json.Unmarshal(b, &pt); err != nil {
+				return err
+			}
+
+			if count, ok := pdfPages[pt.PageType]; ok {
+				pdfPages[pt.PageType] = count + 1
+			}
 		}
 		return nil
 	})
@@ -58,7 +81,16 @@ func main() {
 		errExit(err)
 	}
 
-	log.Event(nil, "pdf generating pages", log.Data{"pdf_count": pdfs, "totalCount": totalCount})
+	pdfCount := 0
+	for _, val := range pdfPages {
+		pdfCount += val
+	}
+
+	log.Event(nil, "pdf generating pages", log.Data{
+		"pdf_pages":  pdfPages,
+		"totalCount": totalFiles,
+		"pdf_count":  pdfCount,
+	})
 }
 
 func Exists(filePath string) bool {
