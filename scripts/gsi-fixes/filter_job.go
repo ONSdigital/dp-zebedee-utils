@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -22,6 +23,7 @@ type FixNonPDFContent struct {
 	Limit     int
 	FixCount  int
 	FixLog    map[string]int
+	Blocked   []string
 }
 
 func (f *FixNonPDFContent) Filter(path string, info os.FileInfo) ([]byte, error) {
@@ -66,7 +68,8 @@ func (f *FixNonPDFContent) Process(jBytes []byte, path string) error {
 	}
 
 	uri = "/" + uri
-	if f.AllCols.IsBlocked(uri) {
+	if blocked, name := f.AllCols.IsBlocked(uri); blocked {
+		f.Blocked = append(f.Blocked, fmt.Sprintf("%s:%s", name, uri))
 		return nil
 	}
 
@@ -93,6 +96,7 @@ func (f *FixNonPDFContent) OnComplete() error {
 		"stats":          f.FixLog,
 		"fix_count":      f.FixCount,
 		"fix_collection": f.FixC.Name,
+		"blocked":        f.Blocked,
 	})
 	return nil
 }

@@ -42,6 +42,7 @@ func main() {
 		MasterDir: masterDir,
 		AllCols:   allCols,
 		FixC:      fixC,
+		Blocked:   make([]string, 0),
 	}
 
 	if err = content.FilterAndProcess(masterDir, job); err != nil {

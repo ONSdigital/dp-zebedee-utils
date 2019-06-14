@@ -47,17 +47,17 @@ type Collections struct {
 	Collections []*Collection
 }
 
-func (c *Collections) IsBlocked(uri string) bool {
+func (c *Collections) IsBlocked(uri string) (bool, string) {
 	for _, col := range c.Collections {
 		if blocked := col.Contains(uri); blocked {
 			log.Event(nil, "content exists in another collection", log.Data{
 				"collection": col.Name,
 				"uri":        uri,
 			})
-			return true
+			return true, col.Name
 		}
 	}
-	return false
+	return false, ""
 }
 
 func (c *Collections) GetByName(name string) (*Collection, error) {
