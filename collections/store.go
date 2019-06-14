@@ -3,13 +3,14 @@ package collections
 import (
 	"bufio"
 	"encoding/json"
-	"github.com/ONSdigital/dp-zebedee-utils/errs"
-	"github.com/ONSdigital/log.go/log"
 	"io"
 	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
+
+	"github.com/ONSdigital/dp-zebedee-utils/errs"
+	"github.com/ONSdigital/log.go/log"
 )
 
 const filePerm = 0755
@@ -28,7 +29,10 @@ func Exists(filePath string) bool {
 // Save a collection
 func Save(c *Collection) error {
 	if Exists(c.Metadata.CollectionRoot) {
-		return errs.New("cannot create collection as a collection with this name already exists", nil, log.Data{"name": c.Name})
+		return errs.New("cannot create collection as a collection with this name already exists", nil, log.Data{
+			"name": c.Name,
+			"dir":  c.Metadata.CollectionRoot,
+		})
 	}
 
 	if err := createCollectionDirectories(c); err != nil {
