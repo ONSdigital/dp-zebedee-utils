@@ -6,9 +6,9 @@ import (
 )
 
 type FilterJob interface {
-	Filter(path string, info os.FileInfo) ([]byte, error)
+	Filter(path string, info os.FileInfo) (bool, error)
 
-	Process(jBytes []byte, uri string) error
+	Process(path string) error
 
 	OnComplete() error
 
@@ -21,15 +21,15 @@ func FilterAndProcess(dir string, job FilterJob) error {
 			return LimitReached
 		}
 
-		jBytes, err := job.Filter(path, info)
+		proceed, err := job.Filter(path, info)
 		if err != nil {
 			return err
 		}
 
-		if jBytes == nil {
+		if !proceed {
 			return nil
 		}
-		return job.Process(jBytes, path)
+		return job.Process(path)
 	}
 
 	if err := filepath.Walk(dir, walkFunc); err != nil {

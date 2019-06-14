@@ -8,46 +8,46 @@ import (
 	"github.com/ONSdigital/log.go/log"
 )
 
-type Counter struct {
+type CounterFiles struct {
 	pageType string
 	count    int
 }
 
-func (c *Counter) Filter(path string, info os.FileInfo) ([]byte, error) {
+func (c *CounterFiles) Filter(path string, info os.FileInfo) (bool, error) {
 	if info.IsDir() {
-		return nil, nil
+		return false, nil
 	}
 
 	if strings.Contains(path, "/previous/") {
-		return nil, nil
+		return false, nil
 	}
 
 	if info.Name() != "data.json" && info.Name() != "data_cy.json" {
-		return nil, nil
+		return false, nil
 	}
 
 	jBytes, err := content.ReadJson(path)
 	if err != nil {
-		return nil, err
+		return false, err
 	}
 
 	pageType, err := content.GetPageType(jBytes)
 	if err != nil {
-		return nil, err
+		return false, err
 	}
 
 	if pageType.Value != c.pageType {
-		return nil, nil
+		return false, nil
 	}
-	return jBytes, nil
+	return strings.Contains(string(jBytes), "@ons.gsi.gov.uk"), nil
 }
 
-func (c *Counter) Process(jBytes []byte, path string) error {
+func (c *CounterFiles) Process(path string) error {
 	c.count += 1
 	return nil
 }
 
-func (c *Counter) OnComplete() error {
+func (c *CounterFiles) OnComplete() error {
 	log.Event(nil, "count timeseries contain gsi emails complete", log.Data{
 		"type":  c.pageType,
 		"found": c.count,
@@ -55,6 +55,6 @@ func (c *Counter) OnComplete() error {
 	return nil
 }
 
-func (c *Counter) LimitReached() bool {
+func (c *CounterFiles) LimitReached() bool {
 	return false
 }

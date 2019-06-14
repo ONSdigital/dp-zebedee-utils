@@ -26,7 +26,7 @@ func main() {
 	masterDir := filepath.Join(*baseDir, "master")
 
 	log.Event(nil, "running count job for pageType: "+*targetType)
-	if err := content.FilterAndProcess(masterDir, &Counter{count: 0, pageType: *targetType}); err != nil {
+	if err := content.FilterAndProcess(masterDir, &CounterFiles{count: 0, pageType: *targetType}); err != nil {
 		errExit(err)
 	}
 }

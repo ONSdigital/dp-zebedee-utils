@@ -26,37 +26,43 @@ type fixgsiEmails struct {
 	Blocked   []string
 }
 
-func (f *fixgsiEmails) Filter(path string, info os.FileInfo) ([]byte, error) {
+func (f *fixgsiEmails) Filter(path string, info os.FileInfo) (bool, error) {
 	if info.IsDir() {
-		return nil, nil
+		return false, nil
 	}
 
 	if strings.Contains(path, "/previous/") {
-		return nil, nil
+		return false, nil
 	}
 
 	if info.Name() != "data.json" && info.Name() != "data_cy.json" {
-		return nil, nil
+		return false, nil
 	}
 
 	jBytes, err := content.ReadJson(path)
 	if err != nil {
-		return nil, err
+		return false, err
 	}
 
 	pageType, err := content.GetPageType(jBytes)
 	if err != nil {
-		return nil, err
+		return false, err
 	}
 
 	if pageType.Value != "timeseries" {
-		return nil, nil
+		return false, nil
 	}
-	return jBytes, nil
+	return true, nil
 }
 
-func (f *fixgsiEmails) Process(jBytes []byte, path string) error {
+func (f *fixgsiEmails) Process(path string) error {
+	jBytes, err := content.ReadJson(path)
+	if err != nil {
+		return err
+	}
+
 	jsonStr := string(jBytes)
+
 	uri, err := filepath.Rel(f.MasterDir, path)
 	if err != nil {
 		return err

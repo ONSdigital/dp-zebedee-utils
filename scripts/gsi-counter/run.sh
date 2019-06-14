@@ -2,6 +2,6 @@
 
 export HUMAN_LOG=true
 
-go build -o fix
+go build -o counter
 
-./fix -col="gsi_2_timeseries" -dir="/Users/dave/Desktop/zebedee-data/content/zebedee"
+./counter  -type="timeseries" -dir="/Users/dave/Desktop/zebedee-data/content/zebedee"
