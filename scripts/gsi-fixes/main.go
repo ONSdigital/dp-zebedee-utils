@@ -35,7 +35,7 @@ func main() {
 		errExit(err)
 	}
 
-	job := &FixNonPDFContent{
+	job := &fixgsiEmails{
 		Limit:     -1,
 		FixCount:  0,
 		FixLog:    make(map[string]int, 0),

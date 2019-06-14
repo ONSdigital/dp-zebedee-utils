@@ -16,7 +16,7 @@ var (
 	newEmail = "@ons.gov.uk"
 )
 
-type FixNonPDFContent struct {
+type fixgsiEmails struct {
 	MasterDir string
 	AllCols   *collections.Collections
 	FixC      *collections.Collection
@@ -26,12 +26,12 @@ type FixNonPDFContent struct {
 	Blocked   []string
 }
 
-func (f *FixNonPDFContent) Filter(path string, info os.FileInfo) ([]byte, error) {
+func (f *fixgsiEmails) Filter(path string, info os.FileInfo) ([]byte, error) {
 	if info.IsDir() {
 		return nil, nil
 	}
 
-	if strings.Contains(path, "/previous/") || strings.Contains(path, "/timeseries/") || strings.Contains(path, "/datasets/") {
+	if strings.Contains(path, "/previous/") {
 		return nil, nil
 	}
 
@@ -49,14 +49,13 @@ func (f *FixNonPDFContent) Filter(path string, info os.FileInfo) ([]byte, error)
 		return nil, err
 	}
 
-	switch pageType.Value {
-	case "article", "bulletin", "compendium_landing_page", "compendium_chapter", "static_methodology":
+	if pageType.Value != "timeseries" {
 		return nil, nil
 	}
 	return jBytes, nil
 }
 
-func (f *FixNonPDFContent) Process(jBytes []byte, path string) error {
+func (f *fixgsiEmails) Process(jBytes []byte, path string) error {
 	jsonStr := string(jBytes)
 	uri, err := filepath.Rel(f.MasterDir, path)
 	if err != nil {
@@ -91,8 +90,8 @@ func (f *FixNonPDFContent) Process(jBytes []byte, path string) error {
 	return nil
 }
 
-func (f *FixNonPDFContent) OnComplete() error {
-	log.Event(nil, "script fixing non [previous, timeseries, datasets, article, bulletin, compendium_landing_page, compendium_chapter, static_methodology] content completed successfully", log.Data{
+func (f *fixgsiEmails) OnComplete() error {
+	log.Event(nil, "script fixing timeseries content completed successfully", log.Data{
 		"stats":          f.FixLog,
 		"fix_count":      f.FixCount,
 		"fix_collection": f.FixC.Name,
@@ -101,17 +100,25 @@ func (f *FixNonPDFContent) OnComplete() error {
 	return nil
 }
 
-func (f *FixNonPDFContent) LimitReached() bool {
+func (f *fixgsiEmails) LimitReached() bool {
 	if f.Limit == -1 {
 		return false
 	}
 	return f.FixCount >= f.Limit
 }
 
-func (f *FixNonPDFContent) logFix(pageType *content.PageType) {
+func (f *fixgsiEmails) logFix(pageType *content.PageType) {
 	if count, ok := f.FixLog[pageType.Value]; ok {
 		f.FixLog[pageType.Value] = count + 1
 	} else {
 		f.FixLog[pageType.Value] = 1
 	}
+}
+
+func isPDFPage(pageType *content.PageType) bool {
+	switch pageType.Value {
+	case "article", "bulletin", "compendium_landing_page", "compendium_chapter", "static_methodology":
+		return true
+	}
+	return false
 }
