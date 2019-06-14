@@ -36,7 +36,7 @@ func main() {
 	}
 
 	job := &fixgsiEmails{
-		Limit:     -1,
+		Limit:     10000,
 		FixCount:  0,
 		FixLog:    make(map[string]int, 0),
 		MasterDir: masterDir,
