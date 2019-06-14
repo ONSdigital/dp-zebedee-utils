@@ -61,7 +61,7 @@ func (f *FixNonPDFContent) Process(jBytes []byte, path string) error {
 		return err
 	}
 
-	if !strings.Contains(jsonStr, "@ons.gsi.gov.uk") {
+	if !strings.Contains(jsonStr, oldEmail) {
 		return nil
 	}
 
