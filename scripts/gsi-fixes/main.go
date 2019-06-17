@@ -12,7 +12,7 @@ import (
 )
 
 func main() {
-	baseDir, collectionName := getFlags()
+	baseDir, collectionName, pageType := getFlags()
 
 	if !content.Exists(baseDir) {
 		errExit(errors.New("master dir does not exist"))
@@ -43,6 +43,7 @@ func main() {
 		AllCols:   allCols,
 		FixC:      fixC,
 		Blocked:   make([]string, 0),
+		Type:      pageType,
 	}
 
 	if err = content.FilterAndProcess(masterDir, job); err != nil {
@@ -50,12 +51,13 @@ func main() {
 	}
 }
 
-func getFlags() (string, string) {
+func getFlags() (string, string, string) {
 	baseDir := flag.String("dir", "", "the zebedee master dir")
 	collectionName := flag.String("col", "", "the name of the collection to add the content to")
+	pageType := flag.String("type", "", "the page type to filter by")
 	flag.Parse()
 
-	return *baseDir, *collectionName
+	return *baseDir, *collectionName, *pageType
 }
 
 func errExit(err error) {

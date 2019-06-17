@@ -24,6 +24,7 @@ type fixgsiEmails struct {
 	FixCount  int
 	FixLog    map[string]int
 	Blocked   []string
+	Type      string
 }
 
 func (f *fixgsiEmails) Filter(path string, info os.FileInfo) (bool, error) {
@@ -49,7 +50,7 @@ func (f *fixgsiEmails) Filter(path string, info os.FileInfo) (bool, error) {
 		return false, err
 	}
 
-	if pageType.Value != "timeseries" {
+	if pageType.Value != f.Type {
 		return false, nil
 	}
 	return true, nil
