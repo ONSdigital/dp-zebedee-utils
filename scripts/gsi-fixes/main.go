@@ -36,7 +36,7 @@ func main() {
 	}
 
 	job := &fixgsiEmails{
-		Limit:     -1,
+		Limit:     3300,
 		FixCount:  0,
 		FixLog:    make(map[string]int, 0),
 		MasterDir: masterDir,
@@ -46,9 +46,7 @@ func main() {
 	}
 
 	if err = content.FilterAndProcess(masterDir, job); err != nil {
-		if err != content.LimitReached {
-			errExit(err)
-		}
+		errExit(err)
 	}
 }
 

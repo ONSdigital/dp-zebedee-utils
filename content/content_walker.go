@@ -33,7 +33,9 @@ func FilterAndProcess(dir string, job FilterJob) error {
 	}
 
 	if err := filepath.Walk(dir, walkFunc); err != nil {
-		return err
+		if err != LimitReached {
+			return err
+		}
 	}
 
 	return job.OnComplete()
