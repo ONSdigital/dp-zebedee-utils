@@ -12,7 +12,7 @@ import (
 )
 
 func main() {
-	baseDir, collectionName, pageType := getFlags()
+	baseDir, collectionName, pageType, limit := getFlags()
 
 	if !content.Exists(baseDir) {
 		errExit(errors.New("master dir does not exist"))
@@ -36,7 +36,7 @@ func main() {
 	}
 
 	job := &fixgsiEmails{
-		Limit:     3300,
+		Limit:     limit,
 		FixCount:  0,
 		FixLog:    make(map[string]int, 0),
 		MasterDir: masterDir,
@@ -51,13 +51,14 @@ func main() {
 	}
 }
 
-func getFlags() (string, string, string) {
+func getFlags() (string, string, string, int) {
 	baseDir := flag.String("dir", "", "the zebedee master dir")
 	collectionName := flag.String("col", "", "the name of the collection to add the content to")
 	pageType := flag.String("type", "", "the page type to filter by")
+	limit := flag.Int("limit", -1, "the max number of fixes to apply")
 	flag.Parse()
 
-	return *baseDir, *collectionName, *pageType
+	return *baseDir, *collectionName, *pageType, *limit
 }
 
 func errExit(err error) {
