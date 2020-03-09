@@ -1,9 +1,9 @@
 package main
 
 import (
+	"github.com/ONSdigital/dp-zebedee-utils/cmd/moves/config"
 	"github.com/ONSdigital/dp-zebedee-utils/collections"
 	"github.com/ONSdigital/dp-zebedee-utils/errs"
-	"github.com/ONSdigital/dp-zebedee-utils/moves/config"
 	"github.com/ONSdigital/log.go/log"
 	"os"
 	"path/filepath"

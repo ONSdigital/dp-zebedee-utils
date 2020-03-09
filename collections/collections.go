@@ -53,7 +53,7 @@ func (c *Collections) Add(col *Collection) {
 }
 
 func New(rootPath string, name string) *Collection {
-	newID, _ := uuid.NewV4()
+	newID := uuid.NewV4()
 	id := fmt.Sprintf("%s-%s", name, newID.String())
 	metadata := NewMetadata(rootPath, name)
 

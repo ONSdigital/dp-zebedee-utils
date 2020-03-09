@@ -2,4 +2,5 @@
 .idea
 /content/builder
 /content/generated/*
-/moves/moves
+/cmd/moves/moves
+cmd/visualisations/visualisations
