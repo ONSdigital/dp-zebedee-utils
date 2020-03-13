@@ -105,7 +105,7 @@ func GetCollectionContaining(relURI string, cols *Collections) *Collection {
 	return nil
 }
 
-func writeContent(uri string, fileBytes []byte) error {
+func WriteContent(uri string, fileBytes []byte) error {
 	dirs, _ := filepath.Split(uri)
 
 	if err := os.MkdirAll(dirs, filePerm); err != nil {

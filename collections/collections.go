@@ -58,16 +58,16 @@ func New(rootPath string, name string) *Collection {
 	metadata := NewMetadata(rootPath, name)
 
 	return &Collection{
-		Metadata:        metadata,
-		ApprovalStatus:  "NOT_STARTED",
-		CollectionOwner: "PUBLISHING_SUPPORT",
-		IsEncrypted:     false,
-		PublishComplete: false,
-		Type:            "manual",
-		ID:              id,
-		Name:            name,
+		Metadata:              metadata,
+		ApprovalStatus:        "NOT_STARTED",
+		CollectionOwner:       "PUBLISHING_SUPPORT",
+		IsEncrypted:           false,
+		PublishComplete:       false,
+		Type:                  "manual",
+		ID:                    id,
+		Name:                  name,
 		TimeSeriesImportFiles: []string{},
-		Teams: []interface{}{},
+		Teams:                 []interface{}{},
 	}
 }
 
@@ -136,7 +136,7 @@ func (c *Collection) Contains(uri string) bool {
 
 func (c *Collection) AddContent(uri string, fileBytes []byte) error {
 	collectionURI := c.inProgressURI(uri)
-	return writeContent(collectionURI, fileBytes)
+	return WriteContent(collectionURI, fileBytes)
 }
 
 func (c *Collection) MoveContent(absoluteSrcPath string, relSrcPath string, relDestUri string) error {
@@ -153,7 +153,7 @@ func (c *Collection) MoveContent(absoluteSrcPath string, relSrcPath string, relD
 	if err != nil {
 		return err
 	}
-	return writeContent(absoluteDest, FixBrokenLinks(b, relSrcPath, relDestUri))
+	return WriteContent(absoluteDest, FixBrokenLinks(b, relSrcPath, relDestUri))
 }
 
 func FixBrokenLinks(fileBytes []byte, old string, new string) []byte {

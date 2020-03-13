@@ -125,27 +125,27 @@ func addDataJsonFilesToCollection(t *Tracker, args *config.Args, col *collection
 
 		dataJsonUri := path.Join(pathSegments[0], pathSegments[1], "data.json")
 		dataJsonMasterUri := path.Join(args.GetMasterDir(), dataJsonUri)
-		dataJsonInProgressUri := path.Join(col.GetInProgress(), dataJsonUri)
+		dataJsonReviewedUri := path.Join(col.GetReviewed(), dataJsonUri)
 
 		if !fileExists(dataJsonMasterUri) {
 			fmt.Println("Skipping data json not found: " + dataJsonUri)
 			continue
 		}
 
-		if fileExists(dataJsonInProgressUri) {
-			//fmt.Println("Skipping data json already added: " + dataJsonInProgressUri)
+		if fileExists(dataJsonReviewedUri) {
+			//fmt.Println("Skipping data json already added: " + dataJsonReviewedUri)
 			// file already added to the collection
 			continue
 		}
 
-		fmt.Println("Moving data json from : " + dataJsonMasterUri + " to: " + dataJsonUri)
-
+		fmt.Println("Moving data json from : " + dataJsonMasterUri + " to: " + dataJsonReviewedUri)
 		b, err := ioutil.ReadFile(dataJsonMasterUri)
 		if err != nil {
 			logAndExit(err)
 		}
 
-		if err := col.AddContent(dataJsonUri, b); err != nil {
+		err = collections.WriteContent(dataJsonReviewedUri, b)
+		if err != nil {
 			logAndExit(err)
 		}
 
@@ -162,10 +162,10 @@ func fileExists(name string) bool {
 	return true
 }
 
-func replaceCodeInHtmlFile(path string, t *Tracker, args *config.Args, cols *collections.Collections, col *collections.Collection) error {
+func replaceCodeInHtmlFile(masterPath string, t *Tracker, args *config.Args, cols *collections.Collections, col *collections.Collection) error {
 	t.numOfHtmlFiles++
 
-	b, err := ioutil.ReadFile(path)
+	b, err := ioutil.ReadFile(masterPath)
 	if err != nil {
 		return err
 	}
@@ -174,12 +174,12 @@ func replaceCodeInHtmlFile(path string, t *Tracker, args *config.Args, cols *col
 	existingCollectionsChecked := false
 	fileUpdated := false
 
-	uri, err := filepath.Rel(args.GetMasterDir(), path)
+	uri, err := filepath.Rel(args.GetMasterDir(), masterPath)
 	if err != nil {
 		return err
 	}
 
-	fmt.Println("Checking file: " + path)
+	fmt.Println("Checking file: " + masterPath)
 	for k, v := range snippetReplacements {
 
 		searchString := k
@@ -203,7 +203,11 @@ func replaceCodeInHtmlFile(path string, t *Tracker, args *config.Args, cols *col
 
 	if fileUpdated {
 		t.filesFixed = append(t.filesFixed, uri)
-		if err := col.AddContent(uri, []byte(fileContents)); err != nil {
+
+		dataJsonReviewedUri := path.Join(col.GetReviewed(), uri)
+
+		err = collections.WriteContent(dataJsonReviewedUri, b)
+		if err != nil {
 			return err
 		}
 	}
