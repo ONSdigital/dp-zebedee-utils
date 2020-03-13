@@ -33,6 +33,7 @@ apt-get update && apt-get install vim
 
 4. Clone this repo:
 ```
+cd /
 git clone -b feature/visualisations-ga-fix https://github.com/ONSdigital/dp-zebedee-utils.git
 ```
 
@@ -43,6 +44,7 @@ cd dp-zebedee-utils/cmd/visualisations/
 
 6. Run the app
 ```
+go build -o visualisations
 export HUMAN_LOG="true"
 ./visualisations -zeb_root="/zebedee" -collection="visualisationsGA"
 ```

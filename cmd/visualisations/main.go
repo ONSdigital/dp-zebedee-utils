@@ -125,9 +125,16 @@ func addDataJsonFilesToCollection(t *Tracker, args *config.Args, col *collection
 
 		dataJsonUri := path.Join(pathSegments[0], pathSegments[1], "data.json")
 		dataJsonMasterUri := path.Join(args.GetMasterDir(), dataJsonUri)
+		dataJsonInProgressUri := path.Join(col.GetInProgress(), dataJsonUri)
 
-		if _, err := os.Stat(dataJsonMasterUri); os.IsNotExist(err) {
+		if !fileExists(dataJsonMasterUri) {
 			fmt.Println("Skipping data json not found: " + dataJsonUri)
+			continue
+		}
+
+		if fileExists(dataJsonInProgressUri) {
+			//fmt.Println("Skipping data json already added: " + dataJsonInProgressUri)
+			// file already added to the collection
 			continue
 		}
 
@@ -144,6 +151,15 @@ func addDataJsonFilesToCollection(t *Tracker, args *config.Args, col *collection
 
 		t.dataJsonFilesMoved++
 	}
+}
+
+func fileExists(name string) bool {
+	if _, err := os.Stat(name); err != nil {
+		if os.IsNotExist(err) {
+			return false
+		}
+	}
+	return true
 }
 
 func replaceCodeInHtmlFile(path string, t *Tracker, args *config.Args, cols *collections.Collections, col *collections.Collection) error {
