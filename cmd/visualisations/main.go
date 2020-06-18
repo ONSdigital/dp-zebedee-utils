@@ -206,7 +206,7 @@ func replaceCodeInHtmlFile(masterPath string, t *Tracker, args *config.Args, col
 
 		dataJsonReviewedUri := path.Join(col.GetReviewed(), uri)
 
-		err = collections.WriteContent(dataJsonReviewedUri, b)
+		err = collections.WriteContent(dataJsonReviewedUri, []byte(fileContents))
 		if err != nil {
 			return err
 		}

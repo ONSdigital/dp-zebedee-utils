@@ -10,7 +10,7 @@ The script copies the content to fix from master, into a new collection of the g
 1. SSH into the environment
 
 ```
-dp-cli ssh develop publishing_mount 1
+dp ssh develop publishing_mount 1
 ```
 
 2. Run a golang container with a volume that maps the content directory on the publishing box:
@@ -34,7 +34,7 @@ apt-get update && apt-get install vim
 4. Clone this repo:
 ```
 cd /
-git clone -b feature/visualisations-ga-fix https://github.com/ONSdigital/dp-zebedee-utils.git
+git clone -b master https://github.com/ONSdigital/dp-zebedee-utils.git
 ```
 
 5. Move into the directory of the binary
